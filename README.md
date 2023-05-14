@@ -13,7 +13,7 @@ Initially this project was aimed to be a set of tools for my own experiments, bu
 ## Installation
 To install **Quant Invest Lab** through pip, run the following command:
 ```bash
-pip install quant-invest-lab -U
+pip install quant-invest-lab --upgrade
 ```
 You can install it using poetry the same way :
 ```bash
@@ -24,5 +24,7 @@ poetry add quant-invest-lab
 ## Backtest a basic EMA crossover strategy
 ```python
 ``` 
+
+## Next steps create official docs and add more examples
 ## Disclaimer
 This package is only for educational purpose or experimentation it is not intended to be used in production. I am not responsible for any loss of money you may have using this package. Use it at your own risk.
