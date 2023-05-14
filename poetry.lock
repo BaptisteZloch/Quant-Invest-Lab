@@ -1712,6 +1712,21 @@ develop = ["colorama", "cython (>=0.29.26)", "cython (>=0.29.28,<3.0.0)", "flake
 docs = ["ipykernel", "jupyter-client", "matplotlib", "nbconvert", "nbformat", "numpydoc", "pandas-datareader", "sphinx"]
 
 [[package]]
+name = "ta"
+version = "0.10.2"
+description = "Technical Analysis Library in Python"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ta-0.10.2.tar.gz", hash = "sha256:e8d193dadd44d88e3c4118dc5224e2fcdc0235caba3efa758aa7a875ffba2faa"},
+]
+
+[package.dependencies]
+numpy = "*"
+pandas = "*"
+
+[[package]]
 name = "tenacity"
 version = "8.2.2"
 description = "Retry code until it succeeds"
@@ -1927,4 +1942,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "e73aedac0c47cfbe0dee3735590eafb2bf1d48f35976c0c422678fb64b12c54a"
+content-hash = "5d22d097ea8738de569cc914d0bdc4ae220beb3a25c7381228f528363c58a8ee"
