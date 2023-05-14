@@ -138,18 +138,12 @@ def max_drawdown(
     return drawdown(returns).min()
 
 
-def kelly_criterion(
-    returns: pd.Series,
-) -> float:
-    p = np.mean(returns > 0)
+def kelly_criterion(returns: pd.Series) -> float:
+    p = (returns > 0).mean()
     q = 1 - p
-
-    # Calculate the average win and loss
-    win = np.mean(returns[returns > 0])
-    loss = np.mean(returns[returns < 0])
+    win = returns[returns > 0].mean()
+    loss = returns[returns < 0].mean()
     r = win / abs(loss)
-
-    # Calculate the Kelly Criterion
     return float((p * r - q) / r)
 
 
