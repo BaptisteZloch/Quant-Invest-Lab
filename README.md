@@ -11,7 +11,18 @@ Initially this project was aimed to be a set of tools for my own experiments, bu
 - **Metrics**: a set of metrics to help you evaluate your strategy through performances and risks.
 
 ## Installation
+To install **Quant Invest Lab** through pip, run the following command:
+```bash
+pip install quant-invest-lab -U
+```
+You can install it using poetry the same way :
+```bash
+poetry add quant-invest-lab
+```
 
-
+# Basic examples
+## Backtest a basic EMA crossover strategy
+```python
+``` 
 ## Disclaimer
 This package is only for educational purpose or experimentation it is not intended to be used in production. I am not responsible for any loss of money you may have using this package. Use it at your own risk.

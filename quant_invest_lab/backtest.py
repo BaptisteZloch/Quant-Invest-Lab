@@ -3,6 +3,11 @@ from scipy.stats import skew, kurtosis
 from typing import Callable, Literal, Optional, Union, Tuple
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+from plotly.subplots import make_subplots
+from tqdm import tqdm
+
 from quant_invest_lab.metrics import (
     sharpe_ratio,
     calmar_ratio,
@@ -13,9 +18,6 @@ from quant_invest_lab.metrics import (
     value_at_risk,
     conditional_value_at_risk,
 )
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-from plotly.subplots import make_subplots
 
 
 def ohlc_long_only_backtester(
@@ -127,7 +129,9 @@ def ohlc_long_only_backtester(
 
     returns_df = pd.DataFrame(columns=["Returns"])
 
-    for index, row in ohlcv_df[1:].iterrows():
+    for index, row in tqdm(
+        ohlcv_df[1:].iterrows(), desc="Backtesting...", total=ohlcv_df.shape[0] - 1
+    ):
         if position_opened is False and long_entry_function(row, previous_row) is True:
             position_opened = True
             current_trade["buy_date"] = index

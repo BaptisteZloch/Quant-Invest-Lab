@@ -1,3 +1,4 @@
+from sklearn.decomposition import PCA
 from typing import Iterable, Literal, Optional
 import pandas as pd
 import numpy as np
@@ -7,7 +8,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from scipy.optimize import minimize
-from sklearn.decomposition import PCA
+import plotly.graph_objects as go
+import plotly.express as px
 
 
 class ABCPortfolio(ABC):
@@ -48,9 +50,32 @@ class ABCPortfolio(ABC):
         res = [(p, float(w)) for p, w in zip(assets, weights)]
         res.sort(key=lambda x: x[1], reverse=True)
         res = np.array(res)
-        plt.title("Asset allocation")
-        plt.pie(res[:, -1], labels=res[:, 0].tolist(), autopct="%1.1f%%")
-        plt.show()
+        fig = go.Figure(
+            go.Pie(
+                labels=res[:, 0].tolist(),
+                values=res[:, -1],
+                hole=0.4,
+                text=[f"{p}: {float(w):.2f} %" for p, w in res],
+                textinfo="label+percent",
+                hoverinfo="label+value",
+                marker=dict(colors=px.colors.qualitative.Pastel1),
+            )
+        )
+
+        fig.update_layout(
+            title={
+                "text": "Asset allocation",
+                "x": 0.5,
+                "y": 0.95,
+                "xanchor": "center",
+                "yanchor": "top",
+            },
+            showlegend=False,
+            height=600,
+            width=600,
+        )
+
+        fig.show()
 
     def _compute_metrics(
         self,
@@ -315,8 +340,11 @@ class MonteCarloPortfolio(ABCPortfolio):
 
         for x in tqdm(range(n_portfolios)):
             # Weights
+            # weights = np.array(
+            #     np.random.uniform(size=len(self._returns.columns)), dtype=np.float64
+            # )
             weights = np.array(
-                np.random.uniform(size=len(self._returns.columns)), dtype=np.float64
+                np.random.rand(len(self._returns.columns)), dtype=np.float64
             )
             weights = weights / np.sum(weights)
 
@@ -355,24 +383,54 @@ class MonteCarloPortfolio(ABCPortfolio):
         assert (
             self._already_optimized
         ), "You must fit the model before getting the allocation."
-        plt.figure(figsize=(12, 8))
-        plt.title(
-            f"Monte Carlo Portfolio Optimization, ${n_portfolios}$ simulations"
-            if n_portfolios
-            else "Monte Carlo Portfolio Optimization"
+
+        fig = go.Figure(
+            go.Scatter(
+                x=self.__vol_arr,
+                y=self.__ret_arr,
+                mode="markers",
+                marker=dict(
+                    color=self.__sharpe_arr,
+                    colorbar=dict(title="Sharpe Ratio"),
+                    colorscale="viridis",
+                ),
+                text=[
+                    f"Volatility: {vol:.2f}<br>Return: {ret:.2f}<br>Sharpe Ratio: {sharpe:.2f}"
+                    for vol, ret, sharpe in zip(
+                        self.__vol_arr, self.__ret_arr, self.__sharpe_arr
+                    )
+                ],
+            )
         )
-        plt.grid(True)
-        plt.scatter(self.__vol_arr, self.__ret_arr, c=self.__sharpe_arr, cmap="viridis")
-        plt.colorbar(label="Sharpe Ratio")
-        plt.xlabel("Volatility")
-        plt.ylabel("Return")
-        plt.scatter(
-            self.__vol_arr[self.__sharpe_arr.argmax()],
-            self.__ret_arr[self.__sharpe_arr.argmax()],
-            c="red",
-            s=50,
-        )  # red dot
-        plt.show()
+
+        fig.update_layout(
+            title={
+                "text": f"Monte Carlo Portfolio Optimization, {n_portfolios} simulations"
+                if n_portfolios
+                else "Monte Carlo Portfolio Optimization",
+                "x": 0.5,
+                "y": 0.95,
+                "xanchor": "center",
+                "yanchor": "top",
+            },
+            xaxis_title="Volatility",
+            yaxis_title="Return",
+            hovermode="closest",
+            showlegend=False,
+            height=650,
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[self.__vol_arr[self.__sharpe_arr.argmax()]],
+                y=[self.__ret_arr[self.__sharpe_arr.argmax()]],
+                mode="markers",
+                marker=dict(color="red", size=10),
+                name="Maximum Sharpe Ratio",
+            )
+        )
+
+        fig.show()
 
     def get_allocation(
         self,
