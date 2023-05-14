@@ -38,11 +38,11 @@ symbol = "BTC-USDT"
 timeframe = "4hour"
 df_BTC = download_crypto_historical_data(symbol, timeframe)
 
-df_BTC = df_BTC.dropna()
-
 # Define your indicators
 df_BTC["EMA20"] = df_BTC.Close.ewm(20).mean()
 df_BTC["EMA60"] = df_BTC.Close.ewm(60).mean()
+
+df_BTC = df_BTC.dropna()
 
 # Define your strategy entry and exit functions
 def buy_func(row: pd.Series, prev_row: pd.Series) -> bool:
