@@ -29,6 +29,37 @@ poetry add quant-invest-lab
 # Basic examples
 ## Backtest a basic EMA crossover strategy
 ```python
+import pandas as pd
+
+from quant_invest_lab.backtest import ohlc_long_only_backtester
+from quant_invest_lab.data_provider import download_crypto_historical_data
+
+symbol = "BTC-USDT"
+timeframe = "4hour"
+df_BTC = download_crypto_historical_data(symbol, timeframe)
+
+df_BTC = df_BTC.dropna()
+
+# Define your indicators
+df_BTC["EMA20"] = df_BTC.Close.ewm(20).mean()
+df_BTC["EMA60"] = df_BTC.Close.ewm(60).mean()
+
+# Define your strategy entry and exit functions
+def buy_func(row: pd.Series, prev_row: pd.Series) -> bool:
+    return True if row.EMA20 > row.EMA60 else False
+
+def sell_func(row: pd.Series, prev_row: pd.Series, trading_days: pd.Series) -> bool:
+    return True if row.EMA20 < row.EMA60 else False
+
+# Backtest your strategy
+ohlc_long_only_backtester(
+    df=df_BTC,
+    long_entry_function=buy_func,
+    long_exit_function=sell_func,
+    timeframe=timeframe,
+    initial_equity=1000,
+)
+
 ``` 
 
 ## Optimize a portfolio (mean-variance)
@@ -68,6 +99,9 @@ mc_ptf.get_allocation("sharpe", "max") # maximize sharpe ratio
 
 ``` 
 ## Next steps
-Create official docs and add more examples
+- Create official docs and add more examples
+- Short, leverage and margin backtesting
+- Add more data provider (Stock, bonds...)
+- Make montecarlo candle data generation process more realistic
 ## Disclaimer
 This package is only for educational purpose or experimentation it is not intended to be used in production. I am not responsible for any loss of money you may have using this package. Use it at your own risk.
