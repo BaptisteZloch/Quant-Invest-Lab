@@ -11,3 +11,7 @@ Initially this project was aimed to be a set of tools for my own experiments, bu
 - **Metrics**: a set of metrics to help you evaluate your strategy through performances and risks.
 
 ## Installation
+
+
+## Disclaimer
+This package is only for educational purpose or experimentation it is not intended to be used in production. I am not responsible for any loss of money you may have using this package. Use it at your own risk.
