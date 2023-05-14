@@ -3,7 +3,7 @@ from scipy.stats import skew, kurtosis
 from typing import Callable, Literal, Optional, Union, Tuple
 import pandas as pd
 import numpy as np
-from metrics import (
+from quant_invest_lab.metrics import (
     sharpe_ratio,
     calmar_ratio,
     sortino_ratio,

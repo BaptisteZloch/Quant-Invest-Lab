@@ -1,0 +1,273 @@
+from datetime import datetime
+import numpy as np
+import pandas as pd
+import numpy.typing as npt
+from typing import Literal
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from fitter import Fitter
+from psutil import cpu_count
+
+
+def generate_brownian_paths(
+    n_paths: int,
+    n_steps: int,
+    T: float | int,
+    mu: float | int,
+    sigma: float | int,
+    s0: float | int,
+    brownian_type: Literal["ABM", "GBM"] = "ABM",
+    get_time: bool = True,
+) -> npt.NDArray[np.float64] | tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    dt = T / n_steps
+    paths = np.zeros((n_paths, n_steps + 1))
+    paths[:, 0] = np.log(s0)
+
+    for i in tqdm(range(0, n_paths)):
+        for j in range(n_steps):
+            paths[i, j + 1] = (
+                paths[i, j]
+                + (mu * 0.5 * sigma**2) * dt
+                + sigma * np.random.normal(0, np.sqrt(dt))
+            )
+
+    if brownian_type == "GBM":
+        paths = np.exp(paths)
+
+    return np.linspace(0, T, n_steps + 1), paths if get_time is True else paths
+
+
+def account_evolution(risk_free_rate: float, time: float) -> float:
+    return np.exp(risk_free_rate * time)
+
+
+def plot_paths_with_distribution(
+    time: npt.NDArray[np.float64],
+    paths: npt.NDArray[np.float64],
+    title: str = "Simulated Brownian Motion",
+) -> None:
+    fig = plt.figure(figsize=(15, 4))
+    fig.suptitle(title)
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+    for y in paths:
+        ax1.plot(time, y)
+    ax1.set_xlabel("Time")
+    ax1.set_ylabel("Price")
+    ax1.set_title(f"{paths.shape[0]} simulations")
+    ax1.grid(True)
+    ax2.hist(
+        paths[:, -1],
+        density=True,
+        bins=75,
+        facecolor="blue",
+        alpha=0.3,
+        label="Frequency of X(T)",
+    )
+    ax2.hist(
+        paths[:, paths.shape[-1] // 4],
+        density=True,
+        bins=75,
+        facecolor="red",
+        alpha=0.3,
+        label="Frequency of X(T/4)",
+    )
+    ax2.set_xlabel("Price")
+    ax2.set_ylabel("Density")
+    ax2.set_title("Distribution at X(T) and X(T/4)")
+    ax2.legend()
+    ax2.grid(True)
+
+
+def generate_open(
+    open_divided_by_close: pd.Series, generated_close: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
+    f = Fitter(
+        open_divided_by_close.values,
+        distributions=["laplace"],
+    )
+    f.fit(max_workers=cpu_count(), n_jobs=cpu_count())
+    return (
+        np.random.laplace(
+            f.fitted_param["laplace"][0],
+            f.fitted_param["laplace"][-1],
+            generated_close.shape[0],
+        )
+    ) * generated_close
+
+
+def generate_high_coef(
+    high_from_body: pd.Series, n: int = 1000
+) -> npt.NDArray[np.float64]:
+    f = Fitter(
+        high_from_body.values,
+        distributions=["expon"],
+    )
+    f.fit(max_workers=cpu_count(), n_jobs=cpu_count())
+
+    return 1 + np.random.exponential(f.fitted_param["expon"][-1], n)
+
+
+def generate_low_coef(
+    low_from_body: pd.Series, n: int = 1000
+) -> npt.NDArray[np.float64]:
+    f = Fitter(
+        low_from_body.values,
+        distributions=["expon"],
+    )
+    f.fit(max_workers=cpu_count(), n_jobs=cpu_count())
+    return np.random.exponential(f.fitted_param["expon"][-1], n)
+
+
+def generate_brownian_candle_from_dataframe(
+    dataframe: pd.DataFrame,
+    timeframe: Literal[
+        "1min",
+        "2min",
+        "5min",
+        "15min",
+        "30min",
+        "1hour",
+        "2hour",
+        "4hour",
+        "12hour",
+        "1day",
+    ] = "1day",
+    generated_dataframe_length: int = 5000,
+    date_index: bool = True,
+) -> pd.DataFrame:
+    """Generate a new dataframe with the same structure (global continuous distribution) as the initial dataframe but with generated data using a geometric brownian motion.
+
+    Args:
+    ----
+        dataframe (pd.DataFrame): The initial dataframe, it should be a real dataframe containing OHLC data. I must contains OHLC columns. This dataframe will to extract the mean return, the std return, the initial price and the distribution of the open, high and low prices.
+
+        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ], optional): The timeframe or data interval frequency, it's used to compute the period parameter. Defaults to "1day".
+
+        generated_dataframe_length (int, optional): The number of record to generate in the new dataframe. Defaults to 5000.
+
+        date_index (bool, optional): Create as of today date index. Defaults to True.
+
+    Returns:
+    ----
+        pd.DataFrame: The generated dataframe and it's candle stick.
+    """
+    assert timeframe in [
+        "1min",
+        "2min",
+        "5min",
+        "15min",
+        "30min",
+        "1hour",
+        "2hour",
+        "4hour",
+        "12hour",
+        "1day",
+    ], "timeframe must be one of the following: 1min, 2min, 5min, 15min, 30min, 1hour, 2hour, 4hour, 12hour, 1day"
+    assert isinstance(dataframe, pd.DataFrame), "dataframe must be a pandas DataFrame"
+    assert set(dataframe.columns).issuperset(
+        ["Open", "High", "Low", "Close"]
+    ), "dataframe must contains Open, High, Low, Close columns"
+    assert (
+        generated_dataframe_length >= 10
+    ), "generated_dataframe_length must be greater than 10"
+
+    timeframe_annualized = {
+        "1min": int(365 * 24 / 1 * 60),
+        "2min": int(365 * 24 / 1 * 30),
+        "5min": int(365 * 24 / 1 * 12),
+        "15min": int(365 * 24 / 1 * 4),
+        "30min": int(365 * 24 / 1 * 2),
+        "1hour": int(365 * 24 / 1),
+        "2hour": int(365 * 24 / 2),
+        "4hour": int(365 * 24 / 4),
+        "12hour": int(365 * 24 / 12),
+        "1day": 365,
+    }
+
+    if not "Returns" in dataframe.columns:
+        dataframe["Returns"] = dataframe.Close.pct_change().fillna(0)
+
+    dataframe["High_from_body"] = dataframe.apply(
+        lambda row: row["High"] / row["Close"]
+        if row["Open"] <= row["Close"]
+        else row["High"] / row["Open"],
+        axis=1,
+    )
+
+    dataframe["Low_from_body"] = dataframe.apply(
+        lambda row: 1 - (row["Low"] / row["Close"])
+        if row["Open"] >= row["Close"]
+        else 1 - (row["Low"] / row["Open"]),
+        axis=1,
+    )
+
+    dataframe["Open_by_close"] = dataframe["Open"] / dataframe["Close"]
+
+    time, sim = generate_brownian_paths(
+        1,
+        generated_dataframe_length - 1,
+        generated_dataframe_length / timeframe_annualized.get(timeframe, 365),
+        dataframe.Returns.mean() * timeframe_annualized.get(timeframe, 365),
+        dataframe.Returns.std() * timeframe_annualized.get(timeframe, 365) ** 0.5,
+        dataframe.Close.iloc[0],
+        "GBM",
+    )
+
+    generated_close = sim[-1, :]
+    generated_open = generate_open(dataframe["Open_by_close"], generated_close)
+
+    generated_high_coefs = generate_high_coef(
+        dataframe["High_from_body"], generated_dataframe_length
+    )
+    generated_low_coefs = generate_low_coef(
+        dataframe["Low_from_body"], generated_dataframe_length
+    )
+
+    generated_ohlc = pd.DataFrame(
+        {
+            "Open": generated_open,
+            "High_from_body": generated_high_coefs,
+            "Low_from_body": generated_low_coefs,
+            "Close": generated_close,
+        }
+    )
+
+    generated_ohlc["High"] = generated_ohlc.apply(
+        lambda row: row["High_from_body"] * row["Close"]
+        if row["Open"] <= row["Close"]
+        else row["High_from_body"] * row["Open"],
+        axis=1,
+    )
+
+    generated_ohlc["Low"] = generated_ohlc.apply(
+        lambda row: (1 - row["Low_from_body"]) * row["Close"]
+        if row["Open"] >= row["Close"]
+        else (1 - row["Low_from_body"]) * row["Open"],
+        axis=1,
+    )
+    if date_index:
+        timeframe_to_freq = {
+            "1min": "1T",
+            "2min": "2T",
+            "5min": "5T",
+            "15min": "15T",
+            "30min": "30T",
+            "1hour": "1H",
+            "2hour": "2H",
+            "4hour": "4H",
+            "12hour": "12H",
+            "1day": "1D",
+        }
+
+        generated_ohlc.set_index(
+            pd.date_range(
+                end=datetime.now(),
+                periods=generated_dataframe_length,
+                freq=timeframe_to_freq[timeframe],
+                normalize=True,
+                name="Date",
+            ),
+            inplace=True,
+        )
+    return generated_ohlc.drop(columns=["High_from_body", "Low_from_body"])

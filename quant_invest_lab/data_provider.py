@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Callable
+from typing import Optional, Callable, Literal
 import os
 import pandas as pd
 import json
@@ -7,10 +7,25 @@ import time
 from random import randint
 from kucoin.client import Market
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 
 def build_multi_crypto_dataframe(
-    symbols: set, drop_na: bool = False, column_to_keep: str = "Close"
+    symbols: set,
+    drop_na: bool = False,
+    column_to_keep: str = "Close",
+    timeframe: Literal[
+        "1min",
+        "2min",
+        "5min",
+        "15min",
+        "30min",
+        "1hour",
+        "2hour",
+        "4hour",
+        "12hour",
+        "1day",
+    ] = "1day",
 ) -> pd.DataFrame:
     """Build a multi cryptocurrencies dataframe from a set of symbols. This dataframe will contain the closing price of each symbol or any other column specified in `column_to_keep`. This function is useful to build a dataframe for a multi cryptocurrencies portfolio.
 
@@ -22,14 +37,17 @@ def build_multi_crypto_dataframe(
 
         column_to_keep (str, optional): The name of the column to keep. Defaults to "Close".
 
+        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ], optional): The data granularity. Defaults to "1day".
+
     Returns:
     -----
         pd.DataFrame: The multi cryptocurrencies dataframe.
     """
     df = pd.DataFrame()
-    for symbol in symbols:
-        # print(symbol)
-        currency_df = download_historical_data(symbol, "1day")
+    for symbol in tqdm(symbols, desc="Fetching symbols..."):
+        currency_df = download_crypto_historical_data(
+            symbol, timeframe, compute_return=False, refresh_list_of_symbol=False
+        )
         currency_df.index = currency_df.index.map(
             lambda x: datetime(x.year, x.month, x.day)
         )
@@ -55,6 +73,22 @@ def download_crypto_historical_data(
     compute_return: bool = True,
     refresh_list_of_symbol: bool = True,
 ) -> pd.DataFrame:
+    """Fetch a cryptocurrency historical data from Kucoin for a given symbol and timeframe.
+
+    Args:
+    ----
+        symbol (str): The symbol to download.
+
+        timeframe (str, optional): The timeframe of the data to download. Defaults to "1hour".
+
+        compute_return (bool, optional): Whether or not to compute the return on close T and T-1. Defaults to True.
+
+        refresh_list_of_symbol (bool, optional): Refresh the list of symbols/ticker from kucoin, it must be true for the first execution of the code. Defaults to True.
+
+    Returns:
+    ----
+        pd.DataFrame: The historical data of the symbol with date index
+    """
     service = CryptoService()
     if refresh_list_of_symbol is True:
         service.refresh_list_of_symbols()  # Uncomment for the first usage
@@ -276,8 +310,8 @@ class CryptoService:
             return df
 
     __kucoin_fetcher = KucoinDataFetcher()
-    __base_dir = "./data/"
-    __absolute_start_date = "01-01-2018"
+    __base_dir = "../data/"
+    __absolute_start_date = "01-01-2017"
 
     def get_list_of_symbols(
         self, base_currency: Optional[str] = None, quote_currency: Optional[str] = None

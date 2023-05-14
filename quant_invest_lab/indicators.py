@@ -115,23 +115,22 @@ def extreme_euphoria_pattern(
 
     def euphoria(close_open: pd.Series) -> int:
         close_open_abs = close_open.abs()
-        match euphoria_side:
-            case "bear":
-                if np.all(np.sign(close_open.to_numpy()) == 1) and all(
-                    close_open_abs.iloc[i] <= close_open_abs.iloc[i + 1]
-                    for i in range(len(close_open_abs) - 1)
-                ):
-                    return 0
-                return 1
-            case "bull":
-                if np.all(np.sign(close_open.to_numpy()) == -1) and all(
-                    close_open_abs.iloc[i] <= close_open_abs.iloc[i + 1]
-                    for i in range(len(close_open_abs) - 1)
-                ):
-                    return 1
+        if euphoria_side == "bear":
+            if np.all(np.sign(close_open.to_numpy()) == 1) and all(
+                close_open_abs.iloc[i] <= close_open_abs.iloc[i + 1]
+                for i in range(len(close_open_abs) - 1)
+            ):
                 return 0
-            case _:
-                raise ValueError("euphoria_side parameter must be either bull or bear")
+            return 1
+        elif euphoria_side == "bull":
+            if np.all(np.sign(close_open.to_numpy()) == -1) and all(
+                close_open_abs.iloc[i] <= close_open_abs.iloc[i + 1]
+                for i in range(len(close_open_abs) - 1)
+            ):
+                return 1
+            return 0
+        else:
+            raise ValueError("euphoria_side parameter must be either bull or bear")
 
     return open_close_return.rolling(n_candles).apply(euphoria)
 
