@@ -138,6 +138,42 @@ def max_drawdown(
     return drawdown(returns).min()
 
 
+def information_ratio(
+    portfolio_returns: pd.Series, benchmark_returns: pd.Series
+) -> float:
+    """The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark, usually an index, compared to the volatility of those returns. The information ratio (IR) measures a portfolio manager's ability to generate excess returns relative to a benchmark but also attempts to identify the consistency of the investor.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
+
+    Returns:
+    -----
+        float: The annualized information ratio.
+    """
+    return (portfolio_returns - benchmark_returns).mean() / tracking_error(
+        portfolio_returns, benchmark_returns
+    )
+
+
+def tracking_error(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> float:
+    """Tracking error is the divergence between the price behavior of a position or a portfolio and the price behavior of a benchmark.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
+
+    Returns:
+    -----
+        float: The annualized tracking error.
+    """
+    return (portfolio_returns - benchmark_returns).std()
+
+
 def kelly_criterion(returns: pd.Series) -> float:
     p = (returns > 0).mean()
     q = 1 - p
