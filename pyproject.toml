@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "quant-invest-lab"
-version = "0.2.1"
+version = "0.2.2"
 description = "Quant Invest Lab is a python package to help you to do some quantitative experiments, while trying to learn or build quantitative investment solutions. This project was initially my own set of functionnalities but I decided to build a package for that and sharing it as open source project."
 authors = ["BaptisteZloch <bzloch@hotmail.fr>"]
 readme = "README.md"
