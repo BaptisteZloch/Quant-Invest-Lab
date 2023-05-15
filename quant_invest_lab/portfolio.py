@@ -44,38 +44,41 @@ class ABCPortfolio(ABC):
 
         Args:
         -----
-            weights (npt.NDArray | Iterable): _description_
-            assets (npt.NDArray | list[str] | tuple[str]): _description_
+            weights (npt.NDArray | Iterable): The weights for each asset in the portfolio between 0 and 1.
+            assets (npt.NDArray | list[str] | tuple[str]): The assets (their names) in the portfolio.
         """
         res = [(p, float(w)) for p, w in zip(assets, weights)]
         res.sort(key=lambda x: x[1], reverse=True)
         res = np.array(res)
-        fig = go.Figure(
-            go.Pie(
-                labels=res[:, 0].tolist(),
-                values=res[:, -1],
-                hole=0.4,
-                text=[f"{p}: {float(w):.2f} %" for p, w in res],
-                textinfo="label+percent",
-                hoverinfo="label+value",
-                marker=dict(colors=px.colors.qualitative.Pastel1),
-            )
-        )
+        plt.title("Asset allocation")
+        plt.pie(res[:, -1], labels=res[:, 0].tolist(), autopct="%1.1f%%")
+        plt.show()
+        # fig = go.Figure(
+        #     go.Pie(
+        #         labels=res[:, 0].tolist(),
+        #         values=res[:, -1],
+        #         hole=0.4,
+        #         text=[f"{p}: {float(w):.2f} %" for p, w in res],
+        #         textinfo="label+percent",
+        #         hoverinfo="label+value",
+        #         marker=dict(colors=px.colors.qualitative.Pastel1),
+        #     )
+        # )
 
-        fig.update_layout(
-            title={
-                "text": "Asset allocation",
-                "x": 0.5,
-                "y": 0.95,
-                "xanchor": "center",
-                "yanchor": "top",
-            },
-            showlegend=False,
-            height=600,
-            width=600,
-        )
+        # fig.update_layout(
+        #     title={
+        #         "text": "Asset allocation",
+        #         "x": 0.5,
+        #         "y": 0.95,
+        #         "xanchor": "center",
+        #         "yanchor": "top",
+        #     },
+        #     showlegend=False,
+        #     height=600,
+        #     width=600,
+        # )
 
-        fig.show()
+        # fig.show()
 
     def _compute_metrics(
         self,
