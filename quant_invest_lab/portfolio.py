@@ -525,7 +525,7 @@ def reduce_dimentionality(
     assert (
         target_explained_variance > 0 and target_explained_variance < 1
     ), "target_explained_variance must be a float between 0 and 1"
-    X = full_dataframe.values
+    X = full_dataframe.to_numpy()
     match mode:
         case "pca":
             calibration_pca = PCA()
