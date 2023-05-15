@@ -732,7 +732,7 @@ def plot_from_trade_df(
             name="Buy and hold cumulative return",
             x=price_df.index,
             y=price_df["Cum_Returns"],
-            line={"shape": "hv"},
+            line={"shape": "hv", "color": "violet"},
         ),
         row=2,
         col=1,
@@ -742,7 +742,7 @@ def plot_from_trade_df(
             name="Strategy cumulative return",
             x=returns_df.index,
             y=returns_df["Cum_Returns"],
-            line={"shape": "hv"},
+            line={"shape": "hv", "color": "salmon"},
         ),
         row=2,
         col=1,
@@ -777,7 +777,16 @@ def plot_from_trade_df(
 
     fig.update_yaxes(title_text="Drawdown", row=3, col=1)
     fig.update_xaxes(title_text="Datetime", row=3, col=1)
-
+    distplot_bench = ff.create_distplot(
+        [price_df["Returns"]],
+        ["Benchmark Returns"],
+        colors=["violet"],
+        curve_type="kde",
+        bin_size=3.5
+        * price_df["Returns"].std()
+        / (len(price_df["Returns"]) ** (1 / 3)),
+    )
+    fig.add_trace(distplot_bench["data"][0], row=4, col=1)
     distplot = ff.create_distplot(
         [returns_df["Returns"]],
         ["Strategy Returns"],
@@ -789,15 +798,6 @@ def plot_from_trade_df(
     )
     fig.add_trace(distplot["data"][0], row=4, col=1)
 
-    distplot_bench = ff.create_distplot(
-        [price_df["Returns"]],
-        ["Benchmark Returns"],
-        curve_type="kde",
-        bin_size=3.5
-        * price_df["Returns"].std()
-        / (len(price_df["Returns"]) ** (1 / 3)),
-    )
-    fig.add_trace(distplot_bench["data"][0], row=4, col=1)
     fig.update_xaxes(title_text="Returns", row=4, col=1)
     fig.update_yaxes(title_text="Density", row=4, col=1)
     fig.update_layout(
