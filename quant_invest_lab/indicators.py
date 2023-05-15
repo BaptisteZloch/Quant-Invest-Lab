@@ -309,7 +309,7 @@ def support_resistance_breakout_indicator(
         low (pd.Series[float | int]): The low series from the OHLCV Data.
 
     Returns:
-        pd.Series: _description_
+        pd.Series: The S/R breakout rolling indicator.
     """
 
     def has_breakout(open_rows: pd.Series) -> int:
@@ -344,8 +344,8 @@ def zlema(
     and other trend following indicators. As it follows price closer, it also provides better price averaging and responds better to price swings.
 
     Args:
-        close (pd.Series): _description_
-        window (int, optional): _description_. Defaults to 26.
+        close (pd.Series): The close series from the OHLCV Data.
+        window (int, optional): The window to calculate the zlema on a period. Defaults to 26.
 
     Returns:
         pd.Series: The ZLEMA indicator

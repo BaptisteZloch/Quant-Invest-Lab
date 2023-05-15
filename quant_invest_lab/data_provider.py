@@ -310,7 +310,7 @@ class CryptoService:
             return df
 
     __kucoin_fetcher = KucoinDataFetcher()
-    __base_dir = "../data/"
+    __base_dir = "./data/"
     __absolute_start_date = "01-01-2017"
 
     def get_list_of_symbols(

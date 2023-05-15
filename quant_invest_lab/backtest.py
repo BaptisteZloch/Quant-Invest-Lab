@@ -35,7 +35,7 @@ def ohlc_long_only_backtester(
         "4hour",
         "12hour",
         "1day",
-    ] = "1day",
+    ],
     take_profit: float = np.inf,
     stop_loss: float = np.inf,
     initial_equity: int = 1000,
@@ -56,7 +56,7 @@ def ohlc_long_only_backtester(
 
         long_exit_function (Callable[[pd.Series, pd.Series, int], bool]): The long exit function, it should take 3 arguments, the current row, the previous row and the number of timeframe count since the last entry order, and return True or False depending on your strategy.
 
-        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ], optional): The timeframe granularity of the dataframe. Defaults to "1day".
+        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ]): The timeframe granularity of the dataframe.
 
         take_profit (float, optional): The percent of the buy price to add to create a stop order and take the profit associated. Defaults to np.inf.
 
@@ -130,7 +130,10 @@ def ohlc_long_only_backtester(
     returns_df = pd.DataFrame(columns=["Returns"])
 
     for index, row in tqdm(
-        ohlcv_df[1:].iterrows(), desc="Backtesting...", total=ohlcv_df.shape[0] - 1
+        ohlcv_df[1:].iterrows(),
+        desc="Backtesting...",
+        total=ohlcv_df.shape[0] - 1,
+        leave=False,
     ):
         if position_opened is False and long_entry_function(row, previous_row) is True:
             position_opened = True

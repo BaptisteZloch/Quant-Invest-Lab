@@ -342,10 +342,6 @@ class MonteCarloPortfolio(ABCPortfolio):
         self.__sharpe_arr = np.zeros(n_portfolios)
 
         for x in tqdm(range(n_portfolios)):
-            # Weights
-            # weights = np.array(
-            #     np.random.uniform(size=len(self._returns.columns)), dtype=np.float64
-            # )
             weights = np.array(
                 np.random.rand(len(self._returns.columns)), dtype=np.float64
             )
