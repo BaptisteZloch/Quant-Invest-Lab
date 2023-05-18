@@ -1,5 +1,9 @@
 from sklearn.decomposition import PCA
 from functools import lru_cache
+import numpy as np
+import numpy.typing as npt
+from typing import Literal
+import pandas as pd
 from bs4 import BeautifulSoup
 import requests
 import re
