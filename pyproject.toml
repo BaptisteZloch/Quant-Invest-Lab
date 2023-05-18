@@ -12,6 +12,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Office/Business :: Financial :: Investment"
 ]
+keywords = ["trading", "backtest","investments","portfolio","quantitative"]
 packages = [{include = "quant_invest_lab"}]
 
 [tool.poetry.urls]
