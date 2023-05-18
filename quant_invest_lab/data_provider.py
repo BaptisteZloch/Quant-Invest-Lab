@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import lru_cache
 from typing import Optional, Callable, Literal
 import os
 import pandas as pd
@@ -10,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 
+@lru_cache(maxsize=32, typed=True)
 def build_multi_crypto_dataframe(
     symbols: set,
     drop_na: bool = False,
@@ -67,6 +69,7 @@ def build_multi_crypto_dataframe(
     return df if not drop_na else df.dropna()
 
 
+@lru_cache(maxsize=32, typed=True)
 def download_crypto_historical_data(
     symbol: str,
     timeframe: str = "1hour",

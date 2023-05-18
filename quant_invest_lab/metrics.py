@@ -1,10 +1,12 @@
 import numpy as np
 import numpy.typing as npt
+from functools import lru_cache
 import pandas as pd
 import scipy.stats as stat
 from typing import Literal, Union
 
 
+@lru_cache(maxsize=20, typed=True)
 def sharpe_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,
@@ -27,6 +29,7 @@ def sharpe_ratio(
     return (returns.mean() * N - risk_free_rate) / (returns.std() * (N**0.5))
 
 
+@lru_cache(maxsize=20, typed=True)
 def treynor_ratio(
     returns: pd.Series,
     benchmark_returns: pd.Series,
@@ -53,6 +56,7 @@ def treynor_ratio(
     return (returns.mean() * N - risk_free_rate) / (beta * (N**0.5))
 
 
+@lru_cache(maxsize=20, typed=True)
 def sortino_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,
@@ -75,6 +79,7 @@ def sortino_ratio(
     return (returns.mean() * N - risk_free_rate) / (downside_risk(returns) * (N**0.5))
 
 
+@lru_cache(maxsize=20, typed=True)
 def calmar_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,
@@ -92,6 +97,7 @@ def calmar_ratio(
     return (returns.mean() * N) / abs(max_drawdown(returns))
 
 
+@lru_cache(maxsize=20, typed=True)
 def downside_risk(returns: pd.Series) -> float:
     """Downside risk or Semi-Deviation is a method of measuring the fluctuations below the mean, unlike variance or standard deviation it only looks at the negative price fluctuations and it's used to evaluate the downside risk (The risk of loss in an investment) of an investment.
 
@@ -106,6 +112,7 @@ def downside_risk(returns: pd.Series) -> float:
     return returns.loc[returns < 0].std()
 
 
+@lru_cache(maxsize=20, typed=True)
 def drawdown(returns: pd.Series) -> pd.Series:
     """Computes the drawdown series of a given returns (not cumulative) time series.
 
@@ -122,6 +129,7 @@ def drawdown(returns: pd.Series) -> pd.Series:
     return (cumulative_returns - running_max) / running_max
 
 
+@lru_cache(maxsize=20, typed=True)
 def max_drawdown(
     returns: pd.Series,
 ) -> float:
@@ -138,6 +146,7 @@ def max_drawdown(
     return drawdown(returns).min()
 
 
+@lru_cache(maxsize=20, typed=True)
 def information_ratio(
     portfolio_returns: pd.Series, benchmark_returns: pd.Series
 ) -> float:
@@ -158,6 +167,7 @@ def information_ratio(
     )
 
 
+@lru_cache(maxsize=20, typed=True)
 def tracking_error(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> float:
     """Tracking error is the divergence between the price behavior of a position or a portfolio and the price behavior of a benchmark.
 
@@ -174,6 +184,7 @@ def tracking_error(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -
     return (portfolio_returns - benchmark_returns).std()
 
 
+@lru_cache(maxsize=20, typed=True)
 def kelly_criterion(returns: pd.Series) -> float:
     p = (returns > 0).mean()
     q = 1 - p
@@ -183,6 +194,7 @@ def kelly_criterion(returns: pd.Series) -> float:
     return float((p * r - q) / r)
 
 
+@lru_cache(maxsize=20, typed=True)
 def value_at_risk(
     returns: pd.Series,
     level: int = 5,
@@ -229,6 +241,7 @@ def value_at_risk(
         )
 
 
+@lru_cache(maxsize=20, typed=True)
 def conditional_value_at_risk(
     returns: pd.Series,
     level: int = 5,

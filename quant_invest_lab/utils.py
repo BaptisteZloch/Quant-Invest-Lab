@@ -1,3 +1,4 @@
+from functools import lru_cache
 from bs4 import BeautifulSoup
 import requests
 import re
@@ -8,12 +9,14 @@ AMERICAN_LARGEST_COMPANIES = (
 )
 
 
+@lru_cache(maxsize=128, typed=True)
 def get_cac40_symbols() -> list[str]:
     soup = BeautifulSoup(requests.get(CAC40_URL).content, "lxml")
     raw_codes = soup.find_all("div", class_="company-code")
     return list(map(lambda input: str(re.sub("<[^>]*>", "", str(input))), raw_codes))
 
 
+@lru_cache(maxsize=128, typed=True)
 def get_largest_symbols_by_country_normal(n: int = 500) -> list[str]:
     n_per_page = 100
     assert (
