@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "quant-invest-lab"
-version = "0.2.4"
+version = "0.2.5"
 description = "Quant Invest Lab is a python package to help you to do some quantitative experiments, while trying to learn or build quantitative investment solutions. This project was initially my own set of functionnalities but I decided to build a package for that and sharing it as open source project."
 authors = ["BaptisteZloch <bzloch@hotmail.fr>"]
 readme = "README.md"
@@ -8,11 +8,11 @@ packages = [{include = "quant_invest_lab"}]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
-pandas = "^2.0.1"
+pandas = "^1.5.3"
 scipy = "^1.10.1"
 statsmodels = "^0.14.0"
 kucoin-python = "^1.0.11"
-numpy = "^1.24.3"
+numpy = "^1.23.5"
 ta = "^0.10.2"
 plotly = "^5.14.1"
 nbformat = "^5.8.0"
