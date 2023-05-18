@@ -3,7 +3,12 @@
 <a href="https://pypi.org/project/quant-invest-lab/"><img alt="PyPI" src="https://img.shields.io/pypi/v/quant-invest-lab"></a>
 <a><img alt="commit update" src="https://img.shields.io/github/last-commit/BaptisteZloch/Quant-Invest-Lab"></a>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
-</p>
+<a href="https://codeclimate.com/github/BaptisteZloch/Quant-Invest-Lab"><img alt="Code Climate" src="https://codeclimate.com/github/BaptisteZloch/Quant-Invest-Lab/badges/gpa.svg"></a>
+<a href="https://codeclimate.com/github/BaptisteZloch/Quant-Invest-Lab"><img alt="GitHub Actions CI" src="https://github.com/BaptisteZloch/Quant-Invest-Lab/actions/workflows/python-publish.yml/badge.svg"></a>
+
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat-square)](https://github.com/BaptisteZloch/Quant-Invest-Lab/issues)
+
+
 
 **Quant Invest Lab** is a project aimed to provide a set of basic tools for quantitative experiments. By quantitative experiment I mean trying to build you own set of investments solution. The project is still in its early stage, but I hope it will grow in the future. 
 
