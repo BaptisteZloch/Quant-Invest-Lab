@@ -14,6 +14,10 @@ classifiers = [
 ]
 packages = [{include = "quant_invest_lab"}]
 
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/BaptisteZloch/Quant-Invest-Lab/issues"
+"Homepage" = "https://github.com/BaptisteZloch/Quant-Invest-Lab"
+
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
 pandas = "^1.5.3"
