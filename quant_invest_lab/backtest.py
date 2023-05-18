@@ -143,6 +143,203 @@ def print_ohlc_backtest_report(
         print(f"- {reason}: {val}")
 
 
+def __ohlc_backtest_one_position_type(
+    ohlcv_df: pd.DataFrame,
+    entry_function: Callable[[pd.Series, pd.Series], bool],
+    exit_function: Callable[[pd.Series, pd.Series, int], bool],
+    position_type: Literal["long", "short"],
+    take_profit: float = np.inf,
+    stop_loss: float = np.inf,
+    maker_fees: Optional[float] = 0.001,
+    taker_fees: Optional[float] = 0.001,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Core backtesting function for OHLCV data. It iterate over the OHLCV records and run the entry and exit function when the conditions are satisfied.
+    WARNING this function shouldn't be used alone, use the long/short backtest function instead.
+
+    Args:
+    ----
+        ohlcv_df (pd.DataFrame): The dataframe containing the OHLC data.
+
+        entry_function (Callable[[pd.Series, pd.Series], bool]): The trade entry function, it should take 2 arguments, the current row and the previous row and return True or False depending on your strategy.
+
+        exit_function (Callable[[pd.Series, pd.Series, int], bool]): The long entry function, it should take 2 arguments, the current row and the previous row and return True or False depending on your strategy.
+
+        position_type (Literal[&quot;long&quot;, &quot;short&quot;]): The position type, long or short.
+
+        take_profit (float, optional): The percent of the buy price to add to create a stop order and take the profit associated. Defaults to np.inf.
+
+        stop_loss (float, optional): The percent of the buy price to cut to create a stop order and stop the loss associated. Defaults to np.inf.
+
+        maker_fees (Optional[float], optional): The fees applied, here maker for limit orders (not yet implemented). Defaults to 0.001.
+
+        taker_fees (Optional[float], optional): The fees applied, here taker for spot orders. Defaults to 0.001.
+
+    Returns:
+    -----
+        tuple[pd.DataFrame, pd.DataFrame]: It returns 2 dataframes, the first is the trades_df : trade summary dataframe and the second is the returns dataframe : returns_df.
+    """
+    assert position_type in ["long", "short"], "position_type must be long or short"
+
+    returns_signs = {"long": 1, "short": -1}
+    previous_row = ohlcv_df.iloc[0]
+    position_opened = False
+    timeframe_count = 0
+    current_trade: dict[str, float | datetime | int | str | pd.Timestamp] = {}
+
+    trades_df = pd.DataFrame(
+        columns=[
+            "entry_date",
+            "entry_price",
+            "entry_reason",
+            "exit_date",
+            "exit_price",
+            "exit_reason",
+            "trade_return",
+        ]
+    )
+
+    returns_df = pd.DataFrame(columns=["Returns"])
+
+    for index, row in tqdm(
+        ohlcv_df[1:].iterrows(),
+        desc="Backtesting...",
+        total=ohlcv_df.shape[0] - 1,
+        leave=False,
+    ):
+        if position_opened is False and entry_function(row, previous_row) is True:
+            position_opened = True
+            current_trade["entry_date"] = index
+            current_trade["entry_price"] = row.Close
+            current_trade["entry_reason"] = "Entry position triggered"
+            timeframe_count = 1
+            entry_price = row.Close
+        elif (
+            position_type == "long"
+            and position_opened is True
+            and current_trade["entry_price"] * (1 + take_profit) <= row.High
+        ) or (
+            position_type == "short"
+            and position_opened is True
+            and current_trade["entry_price"] * (1 + stop_loss) <= row.High
+        ):
+            position_opened = False
+            current_trade["exit_date"] = index
+
+            current_trade["exit_price"] = (
+                current_trade["entry_price"] * (1 + take_profit)
+                if position_type == "long"
+                else current_trade["entry_price"] * (1 + stop_loss)
+            )
+
+            current_trade["exit_reason"] = (
+                "Long take profit triggered"
+                if position_type == "long"
+                else "Short stop loss triggered"
+            )
+
+            rets = (
+                returns_signs[position_type]
+                * ohlcv_df.loc[
+                    current_trade["entry_date"] : current_trade["exit_date"]
+                ].Returns
+            )
+            if isinstance(taker_fees, float) and taker_fees > 0:
+                rets.iloc[0] = rets.iloc[0] - taker_fees
+                rets.iloc[-1] = rets.iloc[-1] - taker_fees
+
+            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
+
+            trades_df = pd.concat(
+                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
+            )
+            returns_df = pd.concat(
+                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
+                ignore_index=False,
+            )
+            timeframe_count = 0
+
+            current_trade = {}
+        elif (
+            position_type == "long"
+            and position_opened is True
+            and current_trade["entry_price"] * (1 - stop_loss) >= row.Low
+        ) or (
+            position_type == "short"
+            and position_opened is True
+            and current_trade["entry_price"] * (1 - take_profit) >= row.Low
+        ):
+            position_opened = False
+            current_trade["exit_date"] = index
+
+            current_trade["exit_price"] = (
+                current_trade["entry_price"] * (1 - stop_loss)
+                if position_type == "long"
+                else current_trade["entry_price"] * (1 - take_profit)
+            )
+            current_trade["exit_reason"] = (
+                "Long stop loss triggered"
+                if position_type == "long"
+                else "Short take profit triggered"
+            )
+
+            rets = (
+                returns_signs[position_type]
+                * ohlcv_df.loc[
+                    current_trade["entry_date"] : current_trade["exit_date"]
+                ].Returns
+            )
+            if isinstance(taker_fees, float) and taker_fees > 0:
+                rets.iloc[0] = rets.iloc[0] - taker_fees
+                rets.iloc[-1] = rets.iloc[-1] - taker_fees
+            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
+
+            trades_df = pd.concat(
+                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
+            )
+            returns_df = pd.concat(
+                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
+                ignore_index=False,
+            )
+            timeframe_count = 0
+            current_trade = {}
+        elif (
+            position_opened is True
+            and exit_function(row, previous_row, timeframe_count) is True
+        ):
+            position_opened = False
+            current_trade["exit_date"] = index
+            current_trade["exit_price"] = row.Close
+            current_trade["exit_reason"] = "Exit position triggered"
+
+            rets = (
+                returns_signs[position_type]
+                * ohlcv_df.loc[
+                    current_trade["entry_date"] : current_trade["exit_date"]
+                ].Returns
+            )
+
+            if isinstance(taker_fees, float) and taker_fees > 0:
+                rets.iloc[0] = rets.iloc[0] - taker_fees
+                rets.iloc[-1] = rets.iloc[-1] - taker_fees
+
+            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
+
+            trades_df = pd.concat(
+                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
+            )
+            returns_df = pd.concat(
+                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
+                ignore_index=False,
+            )
+            timeframe_count = 0
+            current_trade = {}
+        else:
+            timeframe_count += 1
+        previous_row = row
+
+    return trades_df, returns_df
+
+
 def ohlc_long_only_backtester(
     df: pd.DataFrame,
     long_entry_function: Callable[[pd.Series, pd.Series], bool],
@@ -221,137 +418,29 @@ def ohlc_long_only_backtester(
     ), "Dataframe must have columns Open, High, Low, Close, Returns"
 
     ohlcv_df = df.copy()
-    previous_row = ohlcv_df.iloc[0]
-    position_opened = False
-    timeframe_count = 0
-    current_trade: dict[str, float | datetime | int | str | pd.Timestamp] = {}
-
-    trades_df = pd.DataFrame(
-        columns=[
-            "entry_date",
-            "entry_price",
-            "entry_reason",
-            "exit_date",
-            "exit_price",
-            "exit_reason",
-            "trade_return",
-        ]
+    trades_df, returns_df = __ohlc_backtest_one_position_type(
+        ohlcv_df,
+        long_entry_function,
+        long_exit_function,
+        position_type="long",
+        take_profit=take_profit,
+        stop_loss=stop_loss,
+        maker_fees=maker_fees,
+        taker_fees=taker_fees,
     )
 
-    returns_df = pd.DataFrame(columns=["Returns"])
-
-    for index, row in tqdm(
-        ohlcv_df[1:].iterrows(),
-        desc="Backtesting...",
-        total=ohlcv_df.shape[0] - 1,
-        leave=False,
-    ):
-        if position_opened is False and long_entry_function(row, previous_row) is True:
-            position_opened = True
-            current_trade["entry_date"] = index
-            current_trade["entry_price"] = row.Close
-            current_trade["entry_reason"] = "Entry position triggered"
-            timeframe_count = 1
-            entry_price = row.Close
-        elif (
-            position_opened is True
-            and current_trade["entry_price"] * (1 + take_profit) <= row.High
-        ):
-            position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = current_trade["entry_price"] * (
-                1 + take_profit
-            )
-            current_trade["exit_reason"] = "Take profit triggered"
-
-            rets = ohlcv_df.loc[
-                current_trade["entry_date"] : current_trade["exit_date"]
-            ].Returns
-            if isinstance(taker_fees, float) and taker_fees > 0:
-                rets.iloc[0] = rets.iloc[0] - taker_fees
-                rets.iloc[-1] = rets.iloc[-1] - taker_fees
-            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
-
-            trades_df = pd.concat(
-                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
-            )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
-            timeframe_count = 0
-
-            current_trade = {}
-        elif (
-            position_opened is True
-            and current_trade["entry_price"] * (1 - stop_loss) >= row.Low
-        ):
-            position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = float(current_trade["entry_price"]) * (
-                1 - stop_loss
-            )
-            current_trade["exit_reason"] = "Stop loss triggered"
-
-            rets = ohlcv_df.loc[
-                current_trade["entry_date"] : current_trade["exit_date"]
-            ].Returns
-            if isinstance(taker_fees, float) and taker_fees > 0:
-                rets.iloc[0] = rets.iloc[0] - taker_fees
-                rets.iloc[-1] = rets.iloc[-1] - taker_fees
-            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
-
-            trades_df = pd.concat(
-                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
-            )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
-            timeframe_count = 0
-            current_trade = {}
-        elif (
-            position_opened is True
-            and long_exit_function(row, previous_row, timeframe_count) is True
-        ):
-            position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = row.Close
-            current_trade["exit_reason"] = "Exit position triggered"
-
-            rets = ohlcv_df.loc[
-                current_trade["entry_date"] : current_trade["exit_date"]
-            ].Returns
-
-            if isinstance(taker_fees, float) and taker_fees > 0:
-                rets.iloc[0] = rets.iloc[0] - taker_fees
-                rets.iloc[-1] = rets.iloc[-1] - taker_fees
-
-            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
-
-            trades_df = pd.concat(
-                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
-            )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
-            timeframe_count = 0
-            current_trade = {}
-        else:
-            timeframe_count += 1
-        previous_row = row
-
     returns_df["Cum_Returns"] = cumulative_returns(returns_df["Returns"])
-    returns_df["Drawdown"] = drawdown(returns_df["Returns"])
-    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
-    ohlcv_df["Drawdown"] = drawdown(df["Returns"])
+
     if parameter_optimization is True:
         if len(trades_df) > 0:
             return returns_df["Cum_Returns"].iloc[-1]
         return 0.0
 
     assert len(trades_df) > 0, "No trades were generated"
+
+    returns_df["Drawdown"] = drawdown(returns_df["Returns"])
+    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
+    ohlcv_df["Drawdown"] = drawdown(df["Returns"])
     trades_df["trade_duration"] = trades_df["exit_date"] - trades_df["entry_date"]
 
     print(f"{'  Initial informations  ':-^50}")
@@ -460,135 +549,29 @@ def ohlc_short_only_backtester(
     ), "Dataframe must have columns Open, High, Low, Close, Returns"
 
     ohlcv_df = df.copy()
-    previous_row = ohlcv_df.iloc[0]
-    position_opened = False
-    timeframe_count = 0
-    current_trade: dict[str, float | datetime | int | str | pd.Timestamp] = {}
-
-    trades_df = pd.DataFrame(
-        columns=[
-            "entry_date",
-            "entry_price",
-            "entry_reason",
-            "exit_date",
-            "exit_price",
-            "exit_reason",
-            "trade_return",
-        ]
+    trades_df, returns_df = __ohlc_backtest_one_position_type(
+        ohlcv_df,
+        short_entry_function,
+        short_exit_function,
+        position_type="short",
+        take_profit=take_profit,
+        stop_loss=stop_loss,
+        maker_fees=maker_fees,
+        taker_fees=taker_fees,
     )
 
-    returns_df = pd.DataFrame(columns=["Returns"])
-
-    for index, row in tqdm(
-        ohlcv_df[1:].iterrows(),
-        desc="Backtesting...",
-        total=ohlcv_df.shape[0] - 1,
-        leave=False,
-    ):
-        if position_opened is False and short_entry_function(row, previous_row) is True:
-            position_opened = True
-            current_trade["entry_date"] = index
-            current_trade["entry_price"] = row.Close
-            current_trade["entry_reason"] = "Entry position triggered"
-            timeframe_count = 1
-            entry_price = row.Close
-        elif (
-            position_opened is True
-            and current_trade["entry_price"] * (1 + stop_loss) <= row.High
-        ):
-            position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = current_trade["entry_price"] * (1 + stop_loss)
-            current_trade["exit_reason"] = "Stop loss triggered"
-
-            rets = -ohlcv_df.loc[
-                current_trade["entry_date"] : current_trade["exit_date"]
-            ].Returns
-            if isinstance(taker_fees, float) and taker_fees > 0:
-                rets.iloc[0] = rets.iloc[0] - taker_fees
-                rets.iloc[-1] = rets.iloc[-1] - taker_fees
-            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
-
-            trades_df = pd.concat(
-                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
-            )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
-            timeframe_count = 0
-
-            current_trade = {}
-        elif (
-            position_opened is True
-            and current_trade["entry_price"] * (1 - take_profit) >= row.Low
-        ):
-            position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = float(current_trade["entry_price"]) * (
-                1 - take_profit
-            )
-            current_trade["exit_reason"] = "Take profit triggered"
-
-            rets = -ohlcv_df.loc[
-                current_trade["entry_date"] : current_trade["exit_date"]
-            ].Returns
-            if isinstance(taker_fees, float) and taker_fees > 0:
-                rets.iloc[0] = rets.iloc[0] - taker_fees
-                rets.iloc[-1] = rets.iloc[-1] - taker_fees
-            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
-
-            trades_df = pd.concat(
-                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
-            )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
-            timeframe_count = 0
-            current_trade = {}
-        elif (
-            position_opened is True
-            and short_exit_function(row, previous_row, timeframe_count) is True
-        ):
-            position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = row.Close
-            current_trade["exit_reason"] = "Exit position triggered"
-
-            rets = -ohlcv_df.loc[
-                current_trade["entry_date"] : current_trade["exit_date"]
-            ].Returns
-
-            if isinstance(taker_fees, float) and taker_fees > 0:
-                rets.iloc[0] = rets.iloc[0] - taker_fees
-                rets.iloc[-1] = rets.iloc[-1] - taker_fees
-
-            current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
-
-            trades_df = pd.concat(
-                [trades_df, pd.DataFrame([current_trade])], ignore_index=True
-            )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
-            timeframe_count = 0
-            current_trade = {}
-        else:
-            timeframe_count += 1
-        previous_row = row
-
     returns_df["Cum_Returns"] = cumulative_returns(returns_df["Returns"])
-    returns_df["Drawdown"] = drawdown(returns_df["Returns"])
-    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
-    ohlcv_df["Drawdown"] = drawdown(df["Returns"])
+
     if parameter_optimization is True:
         if len(trades_df) > 0:
             return returns_df["Cum_Returns"].iloc[-1]
         return 0.0
 
     assert len(trades_df) > 0, "No trades were generated"
+
+    returns_df["Drawdown"] = drawdown(returns_df["Returns"])
+    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
+    ohlcv_df["Drawdown"] = drawdown(df["Returns"])
     trades_df["trade_duration"] = trades_df["exit_date"] - trades_df["entry_date"]
 
     print(f"{'  Initial informations  ':-^50}")

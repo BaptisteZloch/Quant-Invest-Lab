@@ -126,11 +126,13 @@ def calmar_ratio(
     """The final risk/reward ratio we will consider is the Calmar ratio. This is similar to the other ratios, with the key difference being that the Calmar ratio uses max drawdown in the denominator as opposed to standard deviation.
 
     Args:
+    -----
         returns (pd.Series): The strategy or portfolio not cumulative returns.
 
         N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
 
     Returns:
+    -----
         float: The annualized calmar ratio.
     """
     return (returns.mean() * N) / abs(max_drawdown(returns))
@@ -150,6 +152,22 @@ def downside_risk(returns: pd.Series) -> float:
     return returns.loc[returns < 0].std()
 
 
+def drawdown(returns: pd.Series) -> pd.Series:
+    """Computes the drawdown series of a given returns (not cumulative) time series.
+
+    Args:
+    ----
+        returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+    Returns:
+    ----
+        pd.Series: The drawdown series.
+    """
+    cum_ret = cumulative_returns(returns)
+    running_max = cum_ret.cummax()
+    return (cum_ret - running_max) / running_max
+
+
 def cumulative_returns(returns: pd.Series) -> pd.Series:
     """Computes the cumulative returns series of a given returns (not cumulative) time series.
 
@@ -162,22 +180,6 @@ def cumulative_returns(returns: pd.Series) -> pd.Series:
         pd.Series: The cumulative returns series.
     """
     return (returns + 1).cumprod()
-
-
-def drawdown(returns: pd.Series) -> pd.Series:
-    """Computes the drawdown series of a given returns (not cumulative) time series.
-
-    Args:
-    ----
-        returns (pd.Series): The strategy or portfolio not cumulative returns.
-
-    Returns:
-    ----
-        pd.Series: The drawdown series.
-    """
-    cumulative_returns = cumulative_returns(returns)
-    running_max = cumulative_returns.cummax()
-    return (cumulative_returns - running_max) / running_max
 
 
 def max_drawdown(
