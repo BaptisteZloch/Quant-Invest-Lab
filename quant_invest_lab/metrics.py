@@ -7,6 +7,48 @@ from typing import Literal, Union
 
 
 @lru_cache(maxsize=20, typed=True)
+def profit_factor(
+    avg_win_return: float,
+    avg_loss_return: float,
+) -> float:
+    """The profit factor is a measure of how much profit you make per dollar that you lose. It is defined as the ratio of the total amount of money won to the total amount of money lost
+
+    Args:
+    -----
+        avg_win_return (float): The average winning trade return.
+
+        avg_loss_return (float): The average losing trade return.
+
+    Returns:
+    -----
+        float: The profit factor, it has no unit.
+    """
+    return abs(avg_win_return / avg_loss_return)
+
+
+@lru_cache(maxsize=20, typed=True)
+def expectancy(
+    winrate: float,
+    avg_win_return: float,
+    avg_loss_return: float,
+) -> float:
+    """Expectancy is a measure of the % average amount of money, (or percentage if you prefer) that you can expect to win (or lose) per trade.
+
+    Args:
+    -----
+        winrate (float): The percentage of winning trades.
+
+        avg_win_return (float): The average winning trade return.
+
+        avg_loss_return (float): The average losing trade return.
+
+    Returns:
+    -----
+        float: The expectancy.
+    """
+    return (1 + profit_factor(avg_win_return, avg_loss_return)) * winrate - 1
+
+
 def sharpe_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,
@@ -29,7 +71,6 @@ def sharpe_ratio(
     return (returns.mean() * N - risk_free_rate) / (returns.std() * (N**0.5))
 
 
-@lru_cache(maxsize=20, typed=True)
 def treynor_ratio(
     returns: pd.Series,
     benchmark_returns: pd.Series,
@@ -56,7 +97,6 @@ def treynor_ratio(
     return (returns.mean() * N - risk_free_rate) / (beta * (N**0.5))
 
 
-@lru_cache(maxsize=20, typed=True)
 def sortino_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,
@@ -79,7 +119,6 @@ def sortino_ratio(
     return (returns.mean() * N - risk_free_rate) / (downside_risk(returns) * (N**0.5))
 
 
-@lru_cache(maxsize=20, typed=True)
 def calmar_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,
@@ -97,7 +136,6 @@ def calmar_ratio(
     return (returns.mean() * N) / abs(max_drawdown(returns))
 
 
-@lru_cache(maxsize=20, typed=True)
 def downside_risk(returns: pd.Series) -> float:
     """Downside risk or Semi-Deviation is a method of measuring the fluctuations below the mean, unlike variance or standard deviation it only looks at the negative price fluctuations and it's used to evaluate the downside risk (The risk of loss in an investment) of an investment.
 
@@ -112,7 +150,20 @@ def downside_risk(returns: pd.Series) -> float:
     return returns.loc[returns < 0].std()
 
 
-@lru_cache(maxsize=20, typed=True)
+def cumulative_returns(returns: pd.Series) -> pd.Series:
+    """Computes the cumulative returns series of a given returns (not cumulative) time series.
+
+    Args:
+    ----
+        returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+    Returns:
+    -----
+        pd.Series: The cumulative returns series.
+    """
+    return (returns + 1).cumprod()
+
+
 def drawdown(returns: pd.Series) -> pd.Series:
     """Computes the drawdown series of a given returns (not cumulative) time series.
 
@@ -124,12 +175,11 @@ def drawdown(returns: pd.Series) -> pd.Series:
     ----
         pd.Series: The drawdown series.
     """
-    cumulative_returns = (returns + 1).cumprod()
+    cumulative_returns = cumulative_returns(returns)
     running_max = cumulative_returns.cummax()
     return (cumulative_returns - running_max) / running_max
 
 
-@lru_cache(maxsize=20, typed=True)
 def max_drawdown(
     returns: pd.Series,
 ) -> float:
@@ -146,7 +196,6 @@ def max_drawdown(
     return drawdown(returns).min()
 
 
-@lru_cache(maxsize=20, typed=True)
 def information_ratio(
     portfolio_returns: pd.Series, benchmark_returns: pd.Series
 ) -> float:
@@ -167,7 +216,6 @@ def information_ratio(
     )
 
 
-@lru_cache(maxsize=20, typed=True)
 def tracking_error(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> float:
     """Tracking error is the divergence between the price behavior of a position or a portfolio and the price behavior of a benchmark.
 
@@ -184,7 +232,6 @@ def tracking_error(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -
     return (portfolio_returns - benchmark_returns).std()
 
 
-@lru_cache(maxsize=20, typed=True)
 def kelly_criterion(returns: pd.Series) -> float:
     p = (returns > 0).mean()
     q = 1 - p
@@ -194,7 +241,6 @@ def kelly_criterion(returns: pd.Series) -> float:
     return float((p * r - q) / r)
 
 
-@lru_cache(maxsize=20, typed=True)
 def value_at_risk(
     returns: pd.Series,
     level: int = 5,
@@ -241,7 +287,6 @@ def value_at_risk(
         )
 
 
-@lru_cache(maxsize=20, typed=True)
 def conditional_value_at_risk(
     returns: pd.Series,
     level: int = 5,

@@ -9,6 +9,9 @@ from plotly.subplots import make_subplots
 from tqdm import tqdm
 
 from quant_invest_lab.metrics import (
+    cumulative_returns,
+    expectancy,
+    profit_factor,
     sharpe_ratio,
     calmar_ratio,
     sortino_ratio,
@@ -18,6 +21,126 @@ from quant_invest_lab.metrics import (
     value_at_risk,
     conditional_value_at_risk,
 )
+from quant_invest_lab.utils import timeframe_annualized
+
+
+def print_ohlc_backtest_report(
+    returns_df: pd.DataFrame,
+    trades_df: pd.DataFrame,
+    ohlcv_df: pd.DataFrame,
+    timeframe: Literal[
+        "1min",
+        "2min",
+        "5min",
+        "15min",
+        "30min",
+        "1hour",
+        "2hour",
+        "4hour",
+        "12hour",
+        "1day",
+    ],
+    initial_equity: Union[int, float] = 1000,
+) -> None:
+    good_trades = trades_df.loc[trades_df["trade_return"] > 0]
+    bad_trades = trades_df.loc[trades_df["trade_return"] < 0]
+    total_trades = len(trades_df)
+    print(f"\n{'  Strategy performances  ':-^50}")
+
+    print(
+        f'Strategy final net balance: {returns_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, return: {(returns_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
+    )
+    print(
+        f'Buy & Hold final net balance: {ohlcv_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, returns: {(ohlcv_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
+    )
+    print(f"Strategy winrate ratio: {100 * len(good_trades) / total_trades:.2f} %")
+    print(
+        f"Strategy profit factor ratio: {profit_factor(good_trades['trade_return'].mean(),bad_trades['trade_return'].mean()):.2f}"
+    )
+    print(
+        f"Strategy expectancy: {100*expectancy(len(good_trades) / total_trades,good_trades['trade_return'].mean(),bad_trades['trade_return'].mean()):.2f} %"
+    )
+
+    print(f"\n{'  Returns statistical information  ':-^50}")
+
+    print(
+        f"Expected return : {100*returns_df['Returns'].mean():.2f} %, annuzalized: {100*returns_df['Returns'].mean()*timeframe_annualized[timeframe]:.2f} %"
+    )
+    print(
+        f"Median return : {100*returns_df['Returns'].median():.2f} %, annuzalized: {100*returns_df['Returns'].median()*timeframe_annualized[timeframe]:.2f} %"
+    )
+    print(
+        f'Expected volatility: {100*returns_df["Returns"].std():.2f} %, annualized: {100*returns_df["Returns"].std()*(timeframe_annualized[timeframe]**0.5):.2f} %'
+    )
+    print(
+        f"Skewness: {skew(returns_df.Returns.values):.2f} vs {skew(ohlcv_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
+    )
+    print(
+        f"Kurtosis: {kurtosis(returns_df.Returns.values):.2f} vs {kurtosis(ohlcv_df.Returns.values):.2f} (buy and hold)",
+        ", >3 = fat tails, <3 = thin tails -> the lower the better",
+    )
+    print(
+        f"{timeframe}-95%-VaR: {100*value_at_risk(returns_df.Returns):.2f} % vs {100*value_at_risk(ohlcv_df.Returns):.2f} % (buy and hold) -> the lower the better"
+    )
+    print(
+        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(returns_df.Returns):.2f} % vs {100*conditional_value_at_risk(ohlcv_df.Returns):.2f} % (buy and hold) -> the lower the better"
+    )
+
+    print(f"\n{'  Strategy statistical information  ':-^50}")
+    print(
+        f"Max drawdown: {100*max_drawdown(returns_df.Returns):.2f} % vs {100*max_drawdown(ohlcv_df.Returns):.2f} % (buy and hold)"
+    )
+    print(
+        f"Kelly criterion: {100*kelly_criterion(returns_df.Returns):.2f} % vs {100*kelly_criterion(ohlcv_df.Returns):.2f} % (buy and hold)"
+    )
+    print(
+        f"Sharpe ratio (annualized): {sharpe_ratio(returns_df['Returns'], timeframe_annualized[timeframe],risk_free_rate=timeframe_annualized[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
+        f"Sortino ratio (annualized): {sortino_ratio(returns_df['Returns'], timeframe_annualized[timeframe],risk_free_rate=timeframe_annualized[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
+        f"Calmar ratio (annualized): {calmar_ratio(returns_df['Returns'], timeframe_annualized[timeframe]):.2f} (risk free rate = buy and hold)"
+    )
+
+    print(f"\n{'  Trades informations  ':-^50}")
+    print(f"Mean trade return : {100*trades_df['trade_return'].mean():.2f} %")
+    print(f"Median trade return : {100*trades_df['trade_return'].median():.2f} %")
+    print(f'Mean trade volatility: {100*trades_df["trade_return"].std():.2f} %')
+    print(
+        f"Mean trade duration: {str((trades_df['trade_duration']).mean()).split('.')[0]}"
+    )
+
+    print(f"Total trades: {total_trades}")
+
+    print(f"\n  Total good trades: {len(good_trades)}")
+    print(f"  Mean good trades return: {100*good_trades['trade_return'].mean():.2f} %")
+    print(
+        f"  Median good trades return: {100*good_trades['trade_return'].median():.2f} %"
+    )
+    print(
+        f"  Best trades return: {100*trades_df['trade_return'].max():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmax()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmax()]['trade_duration']}"
+    )
+    print(
+        f"  Mean good trade duration: {str((good_trades['trade_duration']).mean()).split('.')[0]}"
+    )
+    print(f"\n  Total bad trades: {len(bad_trades)}")
+    print(f"  Mean bad trades return: {100*bad_trades['trade_return'].mean():.2f} %")
+    print(
+        f"  Median bad trades return: {100*bad_trades['trade_return'].median():.2f} %"
+    )
+    print(
+        f"  Worst trades return: {100*trades_df['trade_return'].min():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmin()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmin()]['trade_duration']}"
+    )
+    print(
+        f"  Mean bad trade duration: {str((bad_trades['trade_duration']).mean()).split('.')[0]}"
+    )
+
+    print(f"\nExit reasons repartition: ")
+    for reason, val in zip(
+        trades_df.exit_reason.value_counts().index, trades_df.exit_reason.value_counts()
+    ):
+        print(f"- {reason}: {val}")
 
 
 def ohlc_long_only_backtester(
@@ -96,19 +219,7 @@ def ohlc_long_only_backtester(
     assert set({"Open", "High", "Low", "Close", "Returns"}).issubset(
         df.columns
     ), "Dataframe must have columns Open, High, Low, Close, Returns"
-    timeframe_annualized = {
-        "1min": int(365 * 24 / 1 * 60),
-        "2min": int(365 * 24 / 1 * 30),
-        "5min": int(365 * 24 / 1 * 12),
-        "15min": int(365 * 24 / 1 * 4),
-        "30min": int(365 * 24 / 1 * 2),
-        "1hour": int(365 * 24 / 1),
-        "2hour": int(365 * 24 / 2),
-        "4hour": int(365 * 24 / 4),
-        "12hour": int(365 * 24 / 12),
-        "1day": 365,
-    }
-    N = timeframe_annualized[timeframe]
+
     ohlcv_df = df.copy()
     previous_row = ohlcv_df.iloc[0]
     position_opened = False
@@ -231,9 +342,9 @@ def ohlc_long_only_backtester(
             timeframe_count += 1
         previous_row = row
 
-    returns_df["Cum_Returns"] = (returns_df["Returns"] + 1).cumprod()
+    returns_df["Cum_Returns"] = cumulative_returns(returns_df["Returns"])
     returns_df["Drawdown"] = drawdown(returns_df["Returns"])
-    ohlcv_df["Cum_Returns"] = (df["Returns"] + 1).cumprod()
+    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
     ohlcv_df["Drawdown"] = drawdown(df["Returns"])
     if parameter_optimization is True:
         if len(trades_df) > 0:
@@ -242,10 +353,6 @@ def ohlc_long_only_backtester(
 
     assert len(trades_df) > 0, "No trades were generated"
     trades_df["trade_duration"] = trades_df["exit_date"] - trades_df["entry_date"]
-
-    good_trades = trades_df.loc[trades_df["trade_return"] > 0]
-    bad_trades = trades_df.loc[trades_df["trade_return"] < 0]
-    total_trades = len(trades_df)
 
     print(f"{'  Initial informations  ':-^50}")
     print(f"Period: [{str(ohlcv_df.index[0])}] -> [{str(ohlcv_df.index[-1])}]")
@@ -257,93 +364,14 @@ def ohlc_long_only_backtester(
     else:
         print("No fees considered here.")
 
-    print(f"\n{'  Strategy performances  ':-^50}")
-
-    print(
-        f'Strategy final net balance: {returns_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, return: {(returns_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
-    )
-    print(
-        f'Buy & Hold final net balance: {ohlcv_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, returns: {(ohlcv_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
-    )
-    print(f"Strategy winrate ratio: {100 * len(good_trades) / total_trades:.2f} %")
-    print(
-        f"Strategy profit factor ratio: {abs(good_trades['trade_return'].mean()/bad_trades['trade_return'].mean()):.2f}"
+    print_ohlc_backtest_report(
+        returns_df=returns_df,
+        trades_df=trades_df,
+        ohlcv_df=ohlcv_df,
+        timeframe=timeframe,
+        initial_equity=initial_equity,
     )
 
-    print(f"\n{'  Returns statistical information  ':-^50}")
-
-    print(
-        f"Expected return : {100*returns_df['Returns'].mean():.2f} %, annuzalized: {100*returns_df['Returns'].mean()*N:.2f} %"
-    )
-    print(
-        f"Median return : {100*returns_df['Returns'].median():.2f} %, annuzalized: {100*returns_df['Returns'].median()*N:.2f} %"
-    )
-    print(
-        f'Expected volatility: {100*returns_df["Returns"].std():.2f} %, annualized: {100*returns_df["Returns"].std()*(N**0.5):.2f} %'
-    )
-    print(
-        f'Skewness: {skew(returns_df["Returns"].values):.2f}, <0 = left tail, >0 = right tail -> the higher the better'
-    )
-    print(
-        f'Kurtosis: {kurtosis(returns_df["Returns"].values):.2f}',
-        ", >3 = fat tails, <3 = thin tails -> the lower the better",
-    )
-    print(f"{timeframe}-95%-VaR: {100*value_at_risk(returns_df['Returns']):.2f} %")
-    print(
-        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(returns_df['Returns']):.2f} %"
-    )
-
-    print(f"\n{'  Strategy statistical information  ':-^50}")
-    print(f"Max drawdown: {100*max_drawdown(returns_df['Returns']):.2f} %")
-    print(f"Kelly criterion: {100*kelly_criterion(returns_df.Returns):.2f} %")
-    print(
-        f"Sharpe ratio (annualized): {sharpe_ratio(returns_df['Returns'], N,risk_free_rate=N*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Sortino ratio (annualized): {sortino_ratio(returns_df['Returns'], N,risk_free_rate=N*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Calmar ratio (annualized): {calmar_ratio(returns_df['Returns'], N):.2f} (risk free rate = buy and hold)"
-    )
-
-    print(f"\n{'  Trades informations  ':-^50}")
-    print(f"Mean trade return : {100*trades_df['trade_return'].mean():.2f} %")
-    print(f"Median trade return : {100*trades_df['trade_return'].median():.2f} %")
-    print(f'Mean trade volatility: {100*trades_df["trade_return"].std():.2f} %')
-    print(
-        f"Mean trade duration: {str((trades_df['trade_duration']).mean()).split('.')[0]}"
-    )
-
-    print(f"Total trades: {total_trades}")
-
-    print(f"\n  Total good trades: {len(good_trades)}")
-    print(f"  Mean good trades return: {100*good_trades['trade_return'].mean():.2f} %")
-    print(
-        f"  Median good trades return: {100*good_trades['trade_return'].median():.2f} %"
-    )
-    print(
-        f"  Best trades return: {100*trades_df['trade_return'].max():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmax()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmax()]['trade_duration']}"
-    )
-    print(
-        f"  Mean good trade duration: {str((good_trades['trade_duration']).mean()).split('.')[0]}"
-    )
-    print(f"\n  Total bad trades: {len(bad_trades)}")
-    print(f"  Mean bad trades return: {100*bad_trades['trade_return'].mean():.2f} %")
-    print(
-        f"  Median bad trades return: {100*bad_trades['trade_return'].median():.2f} %"
-    )
-    print(
-        f"  Worst trades return: {100*trades_df['trade_return'].min():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmin()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmin()]['trade_duration']}"
-    )
-    print(
-        f"  Mean bad trade duration: {str((bad_trades['trade_duration']).mean()).split('.')[0]}"
-    )
-
-    print(f"\nExit reasons repartition: ")
-    for reason, val in zip(
-        trades_df.exit_reason.value_counts().index, trades_df.exit_reason.value_counts()
-    ):
-        print(f"- {reason}: {val}")
     if plot_result is True:
         plot_from_trade_df(trades_df, ohlcv_df, returns_df)
     if get_returns_df and get_trade_df:
@@ -430,19 +458,7 @@ def ohlc_short_only_backtester(
     assert set({"Open", "High", "Low", "Close", "Returns"}).issubset(
         df.columns
     ), "Dataframe must have columns Open, High, Low, Close, Returns"
-    timeframe_annualized = {
-        "1min": int(365 * 24 / 1 * 60),
-        "2min": int(365 * 24 / 1 * 30),
-        "5min": int(365 * 24 / 1 * 12),
-        "15min": int(365 * 24 / 1 * 4),
-        "30min": int(365 * 24 / 1 * 2),
-        "1hour": int(365 * 24 / 1),
-        "2hour": int(365 * 24 / 2),
-        "4hour": int(365 * 24 / 4),
-        "12hour": int(365 * 24 / 12),
-        "1day": 365,
-    }
-    N = timeframe_annualized[timeframe]
+
     ohlcv_df = df.copy()
     previous_row = ohlcv_df.iloc[0]
     position_opened = False
@@ -563,9 +579,9 @@ def ohlc_short_only_backtester(
             timeframe_count += 1
         previous_row = row
 
-    returns_df["Cum_Returns"] = (returns_df["Returns"] + 1).cumprod()
+    returns_df["Cum_Returns"] = cumulative_returns(returns_df["Returns"])
     returns_df["Drawdown"] = drawdown(returns_df["Returns"])
-    ohlcv_df["Cum_Returns"] = (df["Returns"] + 1).cumprod()
+    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
     ohlcv_df["Drawdown"] = drawdown(df["Returns"])
     if parameter_optimization is True:
         if len(trades_df) > 0:
@@ -574,10 +590,6 @@ def ohlc_short_only_backtester(
 
     assert len(trades_df) > 0, "No trades were generated"
     trades_df["trade_duration"] = trades_df["exit_date"] - trades_df["entry_date"]
-
-    good_trades = trades_df.loc[trades_df["trade_return"] > 0]
-    bad_trades = trades_df.loc[trades_df["trade_return"] < 0]
-    total_trades = len(trades_df)
 
     print(f"{'  Initial informations  ':-^50}")
     print(f"Period: [{str(ohlcv_df.index[0])}] -> [{str(ohlcv_df.index[-1])}]")
@@ -588,94 +600,13 @@ def ohlc_short_only_backtester(
         )
     else:
         print("No fees considered here.")
-
-    print(f"\n{'  Strategy performances  ':-^50}")
-
-    print(
-        f'Strategy final net balance: {returns_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, return: {(returns_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
+    print_ohlc_backtest_report(
+        returns_df=returns_df,
+        trades_df=trades_df,
+        ohlcv_df=ohlcv_df,
+        timeframe=timeframe,
+        initial_equity=initial_equity,
     )
-    print(
-        f'Buy & Hold final net balance: {ohlcv_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, returns: {(ohlcv_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
-    )
-    print(f"Strategy winrate ratio: {100 * len(good_trades) / total_trades:.2f} %")
-    print(
-        f"Strategy profit factor ratio: {abs(good_trades['trade_return'].mean()/bad_trades['trade_return'].mean()):.2f}"
-    )
-
-    print(f"\n{'  Returns statistical information  ':-^50}")
-
-    print(
-        f"Expected return : {100*returns_df['Returns'].mean():.2f} %, annuzalized: {100*returns_df['Returns'].mean()*N:.2f} %"
-    )
-    print(
-        f"Median return : {100*returns_df['Returns'].median():.2f} %, annuzalized: {100*returns_df['Returns'].median()*N:.2f} %"
-    )
-    print(
-        f'Expected volatility: {100*returns_df["Returns"].std():.2f} %, annualized: {100*returns_df["Returns"].std()*(N**0.5):.2f} %'
-    )
-    print(
-        f'Skewness: {skew(returns_df["Returns"].values):.2f}, <0 = left tail, >0 = right tail -> the higher the better'
-    )
-    print(
-        f'Kurtosis: {kurtosis(returns_df["Returns"].values):.2f}',
-        ", >3 = fat tails, <3 = thin tails -> the lower the better",
-    )
-    print(f"{timeframe}-95%-VaR: {100*value_at_risk(returns_df['Returns']):.2f} %")
-    print(
-        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(returns_df['Returns']):.2f} %"
-    )
-
-    print(f"\n{'  Strategy statistical information  ':-^50}")
-    print(f"Max drawdown: {100*max_drawdown(returns_df['Returns']):.2f} %")
-    print(f"Kelly criterion: {100*kelly_criterion(returns_df.Returns):.2f} %")
-    print(
-        f"Sharpe ratio (annualized): {sharpe_ratio(returns_df['Returns'], N,risk_free_rate=N*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Sortino ratio (annualized): {sortino_ratio(returns_df['Returns'], N,risk_free_rate=N*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Calmar ratio (annualized): {calmar_ratio(returns_df['Returns'], N):.2f} (risk free rate = buy and hold)"
-    )
-
-    print(f"\n{'  Trades informations  ':-^50}")
-    print(f"Mean trade return : {100*trades_df['trade_return'].mean():.2f} %")
-    print(f"Median trade return : {100*trades_df['trade_return'].median():.2f} %")
-    print(f'Mean trade volatility: {100*trades_df["trade_return"].std():.2f} %')
-    print(
-        f"Mean trade duration: {str((trades_df['trade_duration']).mean()).split('.')[0]}"
-    )
-
-    print(f"Total trades: {total_trades}")
-
-    print(f"\n  Total good trades: {len(good_trades)}")
-    print(f"  Mean good trades return: {100*good_trades['trade_return'].mean():.2f} %")
-    print(
-        f"  Median good trades return: {100*good_trades['trade_return'].median():.2f} %"
-    )
-    print(
-        f"  Best trades return: {100*trades_df['trade_return'].max():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmax()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmax()]['trade_duration']}"
-    )
-    print(
-        f"  Mean good trade duration: {str((good_trades['trade_duration']).mean()).split('.')[0]}"
-    )
-    print(f"\n  Total bad trades: {len(bad_trades)}")
-    print(f"  Mean bad trades return: {100*bad_trades['trade_return'].mean():.2f} %")
-    print(
-        f"  Median bad trades return: {100*bad_trades['trade_return'].median():.2f} %"
-    )
-    print(
-        f"  Worst trades return: {100*trades_df['trade_return'].min():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmin()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmin()]['trade_duration']}"
-    )
-    print(
-        f"  Mean bad trade duration: {str((bad_trades['trade_duration']).mean()).split('.')[0]}"
-    )
-
-    print(f"\nExit reasons repartition: ")
-    for reason, val in zip(
-        trades_df.exit_reason.value_counts().index, trades_df.exit_reason.value_counts()
-    ):
-        print(f"- {reason}: {val}")
     if plot_result is True:
         plot_from_trade_df(trades_df, ohlcv_df, returns_df)
     if get_returns_df and get_trade_df:

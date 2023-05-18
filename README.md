@@ -53,7 +53,7 @@ df_BTC = df_BTC.dropna()
 def buy_func(row: pd.Series, prev_row: pd.Series) -> bool:
     return True if row.EMA20 > row.EMA60 else False
 
-def sell_func(row: pd.Series, prev_row: pd.Series, trading_days: pd.Series) -> bool:
+def sell_func(row: pd.Series, prev_row: pd.Series, trading_days: int) -> bool:
     return True if row.EMA20 < row.EMA60 else False
 
 # Backtest your strategy
