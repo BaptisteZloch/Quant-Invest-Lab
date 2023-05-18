@@ -4,7 +4,7 @@
 <a><img alt="commit update" src="https://img.shields.io/github/last-commit/BaptisteZloch/Quant-Invest-Lab"></a>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 <a href="https://codeclimate.com/github/BaptisteZloch/Quant-Invest-Lab"><img alt="Code Climate" src="https://codeclimate.com/github/BaptisteZloch/Quant-Invest-Lab/badges/gpa.svg"></a>
-<a href="https://codeclimate.com/github/BaptisteZloch/Quant-Invest-Lab"><img alt="GitHub Actions CI" src="https://github.com/BaptisteZloch/Quant-Invest-Lab/actions/workflows/python-publish.yml/badge.svg"></a>
+<a href="https://github.com/BaptisteZloch/Quant-Invest-Lab/blob/master/.github/workflows/python-publish.yml"><img alt="GitHub Actions CI" src="https://github.com/BaptisteZloch/Quant-Invest-Lab/actions/workflows/python-publish.yml/badge.svg"></a>
 
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat-square)](https://github.com/BaptisteZloch/Quant-Invest-Lab/issues)
 
