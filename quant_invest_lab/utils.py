@@ -97,16 +97,3 @@ def reduce_dimentionality(
         case _:
             raise ValueError("mode must be either pca or tsne")
 
-
-timeframe_annualized = {
-    "1min": int(365 * 24 / 1 * 60),
-    "2min": int(365 * 24 / 1 * 30),
-    "5min": int(365 * 24 / 1 * 12),
-    "15min": int(365 * 24 / 1 * 4),
-    "30min": int(365 * 24 / 1 * 2),
-    "1hour": int(365 * 24 / 1),
-    "2hour": int(365 * 24 / 2),
-    "4hour": int(365 * 24 / 4),
-    "12hour": int(365 * 24 / 12),
-    "1day": 365,
-}

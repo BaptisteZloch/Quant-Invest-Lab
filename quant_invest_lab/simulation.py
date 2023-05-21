@@ -8,6 +8,12 @@ from tqdm import tqdm
 from fitter import Fitter
 from psutil import cpu_count
 
+from quant_invest_lab.contants import (
+    TIMEFRAME_ANNUALIZED,
+    TIMEFRAME_TO_FREQ,
+    TIMEFRAMES,
+)
+
 
 def generate_brownian_paths(
     n_paths: int,
@@ -152,18 +158,9 @@ def generate_brownian_candle_from_dataframe(
     ----
         pd.DataFrame: The generated dataframe and it's candle stick.
     """
-    assert timeframe in [
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ], "timeframe must be one of the following: 1min, 2min, 5min, 15min, 30min, 1hour, 2hour, 4hour, 12hour, 1day"
+    assert (
+        timeframe in TIMEFRAMES
+    ), f"timeframe must be one of the following: {','.join(TIMEFRAMES)}"
     assert isinstance(dataframe, pd.DataFrame), "dataframe must be a pandas DataFrame"
     assert set(dataframe.columns).issuperset(
         ["Open", "High", "Low", "Close"]
@@ -171,19 +168,6 @@ def generate_brownian_candle_from_dataframe(
     assert (
         generated_dataframe_length >= 10
     ), "generated_dataframe_length must be greater than 10"
-
-    timeframe_annualized = {
-        "1min": int(365 * 24 / 1 * 60),
-        "2min": int(365 * 24 / 1 * 30),
-        "5min": int(365 * 24 / 1 * 12),
-        "15min": int(365 * 24 / 1 * 4),
-        "30min": int(365 * 24 / 1 * 2),
-        "1hour": int(365 * 24 / 1),
-        "2hour": int(365 * 24 / 2),
-        "4hour": int(365 * 24 / 4),
-        "12hour": int(365 * 24 / 12),
-        "1day": 365,
-    }
 
     if not "Returns" in dataframe.columns:
         dataframe["Returns"] = dataframe.Close.pct_change().fillna(0)
@@ -207,9 +191,9 @@ def generate_brownian_candle_from_dataframe(
     time, sim = generate_brownian_paths(
         1,
         generated_dataframe_length - 1,
-        generated_dataframe_length / timeframe_annualized.get(timeframe, 365),
-        dataframe.Returns.mean() * timeframe_annualized.get(timeframe, 365),
-        dataframe.Returns.std() * timeframe_annualized.get(timeframe, 365) ** 0.5,
+        generated_dataframe_length / TIMEFRAME_ANNUALIZED.get(timeframe, 365),
+        dataframe.Returns.mean() * TIMEFRAME_ANNUALIZED.get(timeframe, 365),
+        dataframe.Returns.std() * TIMEFRAME_ANNUALIZED.get(timeframe, 365) ** 0.5,
         dataframe.Close.iloc[0],
         "GBM",
     )
@@ -247,24 +231,11 @@ def generate_brownian_candle_from_dataframe(
         axis=1,
     )
     if date_index:
-        timeframe_to_freq = {
-            "1min": "1T",
-            "2min": "2T",
-            "5min": "5T",
-            "15min": "15T",
-            "30min": "30T",
-            "1hour": "1H",
-            "2hour": "2H",
-            "4hour": "4H",
-            "12hour": "12H",
-            "1day": "1D",
-        }
-
         generated_ohlc.set_index(
             pd.date_range(
                 end=datetime.now(),
                 periods=generated_dataframe_length,
-                freq=timeframe_to_freq[timeframe],
+                freq=TIMEFRAME_TO_FREQ[timeframe],
                 normalize=True,
                 name="Date",
             ),

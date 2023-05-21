@@ -21,25 +21,15 @@ from quant_invest_lab.metrics import (
     value_at_risk,
     conditional_value_at_risk,
 )
-from quant_invest_lab.utils import timeframe_annualized
+from quant_invest_lab.contants import TIMEFRAME_ANNUALIZED, TIMEFRAMES
+from quant_invest_lab.types import Timeframe
 
 
 def print_ohlc_backtest_report(
     returns_df: pd.DataFrame,
     trades_df: pd.DataFrame,
     ohlcv_df: pd.DataFrame,
-    timeframe: Literal[
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ],
+    timeframe: Timeframe,
     initial_equity: Union[int, float] = 1000,
 ) -> None:
     good_trades = trades_df.loc[trades_df["trade_return"] > 0]
@@ -64,13 +54,13 @@ def print_ohlc_backtest_report(
     print(f"\n{'  Returns statistical information  ':-^50}")
 
     print(
-        f"Expected return : {100*returns_df['Returns'].mean():.2f} %, annuzalized: {100*returns_df['Returns'].mean()*timeframe_annualized[timeframe]:.2f} %"
+        f"Expected return : {100*returns_df['Returns'].mean():.2f} %, annuzalized: {100*returns_df['Returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
     )
     print(
-        f"Median return : {100*returns_df['Returns'].median():.2f} %, annuzalized: {100*returns_df['Returns'].median()*timeframe_annualized[timeframe]:.2f} %"
+        f"Median return : {100*returns_df['Returns'].median():.2f} %, annuzalized: {100*returns_df['Returns'].median()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
     )
     print(
-        f'Expected volatility: {100*returns_df["Returns"].std():.2f} %, annualized: {100*returns_df["Returns"].std()*(timeframe_annualized[timeframe]**0.5):.2f} %'
+        f'Expected volatility: {100*returns_df["Returns"].std():.2f} %, annualized: {100*returns_df["Returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} %'
     )
     print(
         f"Skewness: {skew(returns_df.Returns.values):.2f} vs {skew(ohlcv_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
@@ -94,13 +84,13 @@ def print_ohlc_backtest_report(
         f"Kelly criterion: {100*kelly_criterion(returns_df.Returns):.2f} % vs {100*kelly_criterion(ohlcv_df.Returns):.2f} % (buy and hold)"
     )
     print(
-        f"Sharpe ratio (annualized): {sharpe_ratio(returns_df['Returns'], timeframe_annualized[timeframe],risk_free_rate=timeframe_annualized[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sharpe ratio (annualized): {sharpe_ratio(returns_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Sortino ratio (annualized): {sortino_ratio(returns_df['Returns'], timeframe_annualized[timeframe],risk_free_rate=timeframe_annualized[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sortino ratio (annualized): {sortino_ratio(returns_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Calmar ratio (annualized): {calmar_ratio(returns_df['Returns'], timeframe_annualized[timeframe]):.2f} (risk free rate = buy and hold)"
+        f"Calmar ratio (annualized): {calmar_ratio(returns_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} (risk free rate = buy and hold)"
     )
 
     print(f"\n{'  Trades informations  ':-^50}")
@@ -344,18 +334,7 @@ def ohlc_long_only_backtester(
     df: pd.DataFrame,
     long_entry_function: Callable[[pd.Series, pd.Series], bool],
     long_exit_function: Callable[[pd.Series, pd.Series, int], bool],
-    timeframe: Literal[
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ],
+    timeframe: Timeframe,
     take_profit: float = np.inf,
     stop_loss: float = np.inf,
     initial_equity: int = 1000,
@@ -376,7 +355,7 @@ def ohlc_long_only_backtester(
 
         long_exit_function (Callable[[pd.Series, pd.Series, int], bool]): The long exit function, it should take 3 arguments, the current row, the previous row and the number of timeframe count since the last entry order, and return True or False depending on your strategy.
 
-        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ]): The timeframe granularity of the dataframe.
+        timeframe (Timeframe): The timeframe granularity of the dataframe.
 
         take_profit (float, optional): The percent of the buy price to add to create a stop order and take the profit associated. Defaults to np.inf.
 
@@ -400,18 +379,9 @@ def ohlc_long_only_backtester(
     -----
         Union[None, Union[float, Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]]]: Nothing or the strategy total return or the trade_df or the return_df or the trade_df and the return_df.
     """
-    assert timeframe in [
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ], "timeframe must be one of the following: 1min, 2min, 5min, 15min, 30min, 1hour, 2hour, 4hour, 12hour, 1day"
+    assert (
+        timeframe in TIMEFRAMES
+    ), f"timeframe must be one of the following: {','.join(TIMEFRAMES)}"
     assert df.shape[0] > 1, "Dataframe must have at least 2 rows"
     assert set({"Open", "High", "Low", "Close", "Returns"}).issubset(
         df.columns
@@ -475,18 +445,7 @@ def ohlc_short_only_backtester(
     df: pd.DataFrame,
     short_entry_function: Callable[[pd.Series, pd.Series], bool],
     short_exit_function: Callable[[pd.Series, pd.Series, int], bool],
-    timeframe: Literal[
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ],
+    timeframe: Timeframe,
     take_profit: float = np.inf,
     stop_loss: float = np.inf,
     initial_equity: int = 1000,
@@ -507,7 +466,7 @@ def ohlc_short_only_backtester(
 
         short_exit_function (Callable[[pd.Series, pd.Series, int], bool]): The short exit function, it should take 3 arguments, the current row, the previous row and the number of timeframe count since the last entry order, and return True or False depending on your strategy.
 
-        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ]): The timeframe granularity of the dataframe.
+        timeframe (Timeframe): The timeframe granularity of the dataframe.
 
         take_profit (float, optional): The percent of the buy price to add to create a stop order and take the profit associated. Defaults to np.inf.
 
@@ -531,18 +490,9 @@ def ohlc_short_only_backtester(
     -----
         Union[None, Union[float, Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]]]: Nothing or the strategy total return or the trade_df or the return_df or the trade_df and the return_df.
     """
-    assert timeframe in [
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ], "timeframe must be one of the following: 1min, 2min, 5min, 15min, 30min, 1hour, 2hour, 4hour, 12hour, 1day"
+    assert (
+        timeframe in TIMEFRAMES
+    ), f"timeframe must be one of the following: {','.join(TIMEFRAMES)}"
     assert df.shape[0] > 1, "Dataframe must have at least 2 rows"
     assert set({"Open", "High", "Low", "Close", "Returns"}).issubset(
         df.columns

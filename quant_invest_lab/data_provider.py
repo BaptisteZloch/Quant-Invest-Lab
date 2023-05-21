@@ -10,24 +10,16 @@ from kucoin.client import Market
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
+from quant_invest_lab.contants import TIMEFRAME_IN_S, TIMEFRAMES
+from quant_invest_lab.types import Timeframe
+
 
 @lru_cache(maxsize=32, typed=True)
 def build_multi_crypto_dataframe(
     symbols: set,
     drop_na: bool = False,
     column_to_keep: str = "Close",
-    timeframe: Literal[
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ] = "1day",
+    timeframe: Timeframe = "1day",
 ) -> pd.DataFrame:
     """Build a multi cryptocurrencies dataframe from a set of symbols. This dataframe will contain the closing price of each symbol or any other column specified in `column_to_keep`. This function is useful to build a dataframe for a multi cryptocurrencies portfolio.
 
@@ -39,7 +31,7 @@ def build_multi_crypto_dataframe(
 
         column_to_keep (str, optional): The name of the column to keep. Defaults to "Close".
 
-        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ], optional): The data granularity. Defaults to "1day".
+        timeframe (Timeframe, optional): The data granularity. Defaults to "1day".
 
     Returns:
     -----
@@ -72,7 +64,7 @@ def build_multi_crypto_dataframe(
 @lru_cache(maxsize=32, typed=True)
 def download_crypto_historical_data(
     symbol: str,
-    timeframe: str = "1hour",
+    timeframe: Timeframe = "1hour",
     compute_return: bool = True,
     refresh_list_of_symbol: bool = True,
 ) -> pd.DataFrame:
@@ -82,7 +74,7 @@ def download_crypto_historical_data(
     ----
         symbol (str): The symbol to download.
 
-        timeframe (str, optional): The timeframe of the data to download. Defaults to "1hour".
+        timeframe (Timeframe, optional): The timeframe of the data to download. Defaults to "1hour".
 
         compute_return (bool, optional): Whether or not to compute the return on close T and T-1. Defaults to True.
 
@@ -101,68 +93,39 @@ def download_crypto_historical_data(
     df = df.loc[~df.index.duplicated(), :]
     df = df.sort_index()
 
-    timeframe_to_freq = {
-        "1min": "1T",
-        "2min": "2T",
-        "5min": "5T",
-        "15min": "15T",
-        "30min": "30T",
-        "1hour": "1H",
-        "2hour": "2H",
-        "4hour": "4H",
-        "12hour": "12H",
-        "1day": "1D",
-    }
     if compute_return is True:
         df["Returns"] = df["Close"].pct_change()
     df = df.fillna(0.0)
-    return df  # .asfreq(timeframe_to_freq[timeframe])#.ffill()
+    return df  # .asfreq(TIMEFRAME_TO_FREQ[timeframe])#.ffill()
 
 
 class CryptoService:
     class KucoinDataFetcher:
         __client = Market(url="https://api.kucoin.com")
-        __timeframes_in_s: dict[str, int] = {
-            "1min": 60,
-            "2min": 120,
-            "5min": 300,
-            "15min": 900,
-            "30min": 1800,
-            "1hour": 3600,
-            "2hour": 7200,
-            "4hour": 14400,
-            "12hour": 43200,
-            "1day": 86400,
-        }
-        timeframes: tuple[str] = tuple(__timeframes_in_s.keys())
 
         def __construct_timestamp_list(
             self,
             start_timestamp: int,
             end_timestamp: int,
-            timeframe: str,
+            timeframe: Timeframe,
             exchange_limit: int = 1500,
         ) -> list[int]:
             """Private function that generates a list of timestamps spaced of `exchange_limit` times `timeframe`.
             Args:
                 start_timestamp (str): The initial timestamp.
                 end_timestamp (str): The final timestamp.
-                timeframe (str): The desired timeframe, sould be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day...
+                timeframe (Timeframe): The desired timeframe, sould be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day...
                 exchange_limit (int, optional): The exchange limit : 1500 for Kucoin here.. Defaults to 1500.
             Returns:
                 list[int]: The list of timestamps.
             """
-            remaining = (end_timestamp - start_timestamp) // self.__timeframes_in_s[
-                timeframe
-            ]
+            remaining = (end_timestamp - start_timestamp) // TIMEFRAME_IN_S[timeframe]
 
             timestamp_i = end_timestamp
             timestamps = [timestamp_i]
 
             while remaining > exchange_limit:
-                timestamp_i = (
-                    timestamp_i - self.__timeframes_in_s[timeframe] * exchange_limit
-                )
+                timestamp_i = timestamp_i - TIMEFRAME_IN_S[timeframe] * exchange_limit
                 remaining = remaining - exchange_limit
                 timestamps.append(timestamp_i)
 
@@ -192,14 +155,18 @@ class CryptoService:
 
         @__handle_429_error
         def __get_data(
-            self, symbol: str, start_at: int, end_at: int, timeframe: str = "15min"
+            self,
+            symbol: str,
+            start_at: int,
+            end_at: int,
+            timeframe: Timeframe = "15min",
         ) -> pd.DataFrame:
             """Private function that uses Kucoin API to get the data for a specific symbol and timeframe.
             Args:
                 symbol (str): The symbol for the data we want to extract. Defaults to "BTC-USDT".
                 start_at (int): The starting timestamp and. Note that this function could only outputs 1500 records. If the timeframe and the timestamps don't satisfy it, it will return a dataframe with 1500 records from the starting timestamp.
                 end_at (int): The ending timestamp.
-                timeframe (str, optional): The timeframe, it must be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
+                timeframe (Timeframe, optional): The timeframe, it must be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
             Returns:
                 Optional[pd.DataFrame]: The dataframe containing historical records.
             """
@@ -234,13 +201,13 @@ class CryptoService:
             raise ValueError("Error, no symbols found.")
 
         def download_history(
-            self, symbol: str, since: str, timeframe: str, jobs: int = -1
+            self, symbol: str, since: str, timeframe: Timeframe, jobs: int = -1
         ) -> pd.DataFrame:
             """Download a set of historical data and save it.
             Args:
                 symbol (str): The symbol for the data we want to extract. Defaults to "BTC-USDT".
                 since (str): The initial date in format : dd-mm-yyyy.
-                timeframe (str): The timeframe, it must be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
+                timeframe (Timeframe): The timeframe, it must be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
                 jobs (int, optional): The number of thread to parallelize the code. Defaults to -1.
             Raises:
                 ValueError: Error in using parallelism.
@@ -355,17 +322,17 @@ class CryptoService:
             )
         raise ValueError("Error, wrong parameters.")
 
-    def get_history_of_symbol(self, symbol: str, timeframe: str) -> pd.DataFrame:
+    def get_history_of_symbol(self, symbol: str, timeframe: Timeframe) -> pd.DataFrame:
         """Function that get the history of a symbol.
         Args:
             symbol (str): The crypto symbol file.
-            timeframe (str): The history's timeframe.
+            timeframe (Timeframe): The history's timeframe.
         Returns:
             pd.DataFrame: Records corresponding to the history.
         """
         assert (
-            timeframe in self.__kucoin_fetcher.timeframes
-        ), f"Error, timeframe must be in {self.__kucoin_fetcher.timeframes}"
+            timeframe in TIMEFRAMES
+        ), f"Error, timeframe must be in {','.join(TIMEFRAMES)}"
 
         assert (
             symbol in self.get_list_of_symbols()
@@ -378,11 +345,11 @@ class CryptoService:
         with open(f"{self.__base_dir}list_available/crypto_available.json", "w") as f:
             json.dump({"listing": self.__kucoin_fetcher.get_symbols()}, f)
 
-    def check_file_exists(self, symbol: str, timeframe: str) -> bool:
+    def check_file_exists(self, symbol: str, timeframe: Timeframe) -> bool:
         """Verify if the history has already been fetched
         Args:
             symbol (str): The crypto symbol file.
-            timeframe (str): The history's timeframe.
+            timeframe (Timeframe): The history's timeframe.
         Returns:
             bool: Whether or not the history is present.
         """
@@ -396,11 +363,11 @@ class CryptoService:
         with open(f"{self.__base_dir}list_available/crypto_available.json", "r") as f:
             return json.load(f)["listing"]
 
-    def __refresh_or_download(self, symbol: str, timeframe: str) -> pd.DataFrame:
+    def __refresh_or_download(self, symbol: str, timeframe: Timeframe) -> pd.DataFrame:
         """Private function used to refresh or download the history of a symbol.
         Args:
             symbol (str): The crypto symbol file.
-            timeframe (str): The history's timeframe.
+            timeframe (Timeframe): The history's timeframe.
         Returns:
             pd.DataFrame: The complete history refreshed or not.
         """
@@ -442,6 +409,6 @@ class CryptoService:
 
     def __init_directories(self) -> None:
         """Private function that init all directories."""
-        for tf in self.__kucoin_fetcher.timeframes:
+        for tf in TIMEFRAMES:
             os.makedirs(f"{self.__base_dir}{tf}", exist_ok=True)
         os.makedirs(f"{self.__base_dir}list_available", exist_ok=True)
