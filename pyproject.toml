@@ -41,6 +41,7 @@ pywavelets = "^1.4.1"
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.23.0"
 black = "^23.3.0"
+mkdocs = "^1.4.3"
 
 [build-system]
 requires = ["poetry-core"]

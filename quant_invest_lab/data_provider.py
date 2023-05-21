@@ -98,7 +98,7 @@ def download_crypto_historical_data(
 
     if compute_return is True:
         df["Returns"] = df["Close"].pct_change()
-    if keep_timestamps is False:
+    if keep_timestamps_col is False:
         df = df.drop(columns=["Timestamp"])
 
     df = df.fillna(0.0)
