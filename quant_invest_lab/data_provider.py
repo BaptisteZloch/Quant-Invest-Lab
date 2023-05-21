@@ -67,6 +67,7 @@ def download_crypto_historical_data(
     timeframe: Timeframe = "1hour",
     compute_return: bool = True,
     refresh_list_of_symbol: bool = True,
+    keep_timestamps_col: bool = False,
 ) -> pd.DataFrame:
     """Fetch a cryptocurrency historical data from Kucoin for a given symbol and timeframe.
 
@@ -79,6 +80,8 @@ def download_crypto_historical_data(
         compute_return (bool, optional): Whether or not to compute the return on close T and T-1. Defaults to True.
 
         refresh_list_of_symbol (bool, optional): Refresh the list of symbols/ticker from kucoin, it must be true for the first execution of the code. Defaults to True.
+
+        keep_timestamps_col (bool, optional): Whether or not to keep the timestamps. Defaults to False.
 
     Returns:
     ----
@@ -95,6 +98,9 @@ def download_crypto_historical_data(
 
     if compute_return is True:
         df["Returns"] = df["Close"].pct_change()
+    if keep_timestamps is False:
+        df = df.drop(columns=["Timestamp"])
+
     df = df.fillna(0.0)
     return df  # .asfreq(TIMEFRAME_TO_FREQ[timeframe])#.ffill()
 
