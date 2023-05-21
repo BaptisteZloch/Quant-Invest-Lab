@@ -36,6 +36,7 @@ beautifulsoup4 = "^4.12.2"
 fitter = "^1.5.2"
 scikit-learn = "^1.2.2"
 emd-signal = "^1.4.0"
+pywavelets = "^1.4.1"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.23.0"

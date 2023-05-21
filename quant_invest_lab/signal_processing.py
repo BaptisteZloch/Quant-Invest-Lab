@@ -2,6 +2,47 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from PyEMD import EMD
+import pywt
+
+
+def discrete_wavelet_smoothing(
+    signal: pd.Series | npt.NDArray[np.float64],
+    thresh: float = 0.05,
+    wavelet: str = "db5",
+) -> npt.NDArray[np.float64]:
+    """Perform a discrete wavelet low pass filter to smoothen a signal.
+
+    Args:
+    ----
+        signal (pd.Series | npt.NDArray[np.float64]): The signal to smooth, a pandas Series or numpy array containing float.
+
+        thresh (float, optional): The wavelet threshold to smoothen data, the higher threshold the more denoised the signal will be. Defaults to 0.63.
+
+        wavelet (str, optional): Wavelet type 'sym5', 'coif5', 'bior2.4': . Defaults to "db5".
+
+    Returns:
+    -----
+        npt.NDArray[np.float64]: The smoothed signal.
+    """
+    if isinstance(signal, np.ndarray) is True:
+        signal_np = signal
+    elif isinstance(signal, pd.Series) is True:
+        signal_np = signal.to_numpy()  # type: ignore
+    else:
+        raise TypeError("signal must be a pandas.Series or a numpy array")
+    assert wavelet in pywt.wavelist(
+        kind="discrete"
+    ), f"Error provide a valid discrete wavelet : {pywt.wavelist(kind='discrete')}"
+    coeff = pywt.wavedec(signal_np, wavelet, mode="per")
+    coeff[1:] = (
+        pywt.threshold(i, value=thresh * np.nanmax(signal_np), mode="soft")
+        for i in coeff[1:]
+    )
+    reconstructed_signal = pywt.waverec(coeff, wavelet, mode="per")
+    if len(signal_np) % 2 == 0:
+        return reconstructed_signal
+    else:
+        return reconstructed_signal[1:]
 
 
 def emd_smoothing(
