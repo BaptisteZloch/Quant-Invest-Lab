@@ -42,6 +42,10 @@ pywavelets = "^1.4.1"
 ipykernel = "^6.23.0"
 black = "^23.3.0"
 mkdocs = "^1.4.3"
+mkdocs-material = "^9.1.14"
+mkdocs-material-extensions = "^1.1.1"
+mkdocstrings = "^0.21.2"
+mkdocstrings-python = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core"]

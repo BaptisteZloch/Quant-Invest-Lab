@@ -1,0 +1,16 @@
+site_name: Quant Invest Lab Docs
+# site_url: https://quant-invest-lab.com/
+
+
+theme:
+  name: material
+
+plugins:
+  - mkdocstrings
+
+nav:
+  - Home: index.md
+  # - Tutorial: tutorials.md
+  # - How to guides: how-to-guides.md
+  - Reference: reference.md
+  # - Explanation: explanation.md
