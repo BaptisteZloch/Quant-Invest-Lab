@@ -190,15 +190,15 @@ def __ohlc_backtest_one_position_type(
 
     returns_df = pd.DataFrame(columns=["Returns"])
 
-    for index, row in tqdm(
-        ohlcv_df[1:-1].iterrows(),
+    for row in tqdm(
+        ohlcv_df[1:-1].itertuples(index=True),
         desc="Backtesting...",
         total=ohlcv_df.shape[0] - 1,
         leave=False,
     ):
         if position_opened is False and entry_function(row, previous_row) is True:
             position_opened = True
-            current_trade["entry_date"] = index
+            current_trade["entry_date"] = row.Index
             current_trade["entry_price"] = row.Close
             current_trade["entry_reason"] = "Entry position triggered"
             timeframe_count = 1
@@ -213,7 +213,7 @@ def __ohlc_backtest_one_position_type(
             and current_trade["entry_price"] * (1 + stop_loss) <= row.High
         ):
             position_opened = False
-            current_trade["exit_date"] = index
+            current_trade["exit_date"] = row.Index
 
             current_trade["exit_price"] = (
                 current_trade["entry_price"] * (1 + take_profit)
@@ -259,7 +259,7 @@ def __ohlc_backtest_one_position_type(
             and current_trade["entry_price"] * (1 - take_profit) >= row.Low
         ):
             position_opened = False
-            current_trade["exit_date"] = index
+            current_trade["exit_date"] = row.Index
 
             current_trade["exit_price"] = (
                 current_trade["entry_price"] * (1 - stop_loss)
@@ -296,7 +296,9 @@ def __ohlc_backtest_one_position_type(
             position_opened is True
             and exit_function(row, previous_row, timeframe_count) is True
         ):
-            next_row_index = ohlcv_df.index.get_loc(index) + 1  # To close on next open.
+            next_row_index = (
+                ohlcv_df.index.get_loc(row.Index) + 1
+            )  # To close on next open.
 
             position_opened = False
             current_trade["exit_date"] = ohlcv_df.iloc[next_row_index].name
