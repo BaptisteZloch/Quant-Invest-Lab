@@ -14,7 +14,6 @@ from quant_invest_lab.constants import TIMEFRAME_IN_S, TIMEFRAMES
 from quant_invest_lab.types import Timeframe
 
 
-@lru_cache(maxsize=32, typed=True)
 def build_multi_crypto_dataframe(
     symbols: set,
     drop_na: bool = False,
