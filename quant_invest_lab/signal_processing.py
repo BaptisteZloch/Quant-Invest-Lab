@@ -6,7 +6,7 @@ from PyEMD import EMD
 
 def emd_smoothing(
     signal: pd.Series | npt.NDArray[np.float64],
-    frequency_cutoff: int = 3,
+    layer_cutoff: int = 3,
 ) -> npt.NDArray[np.float64]:
     """Smooth a signal using Empirical Mode Decomposition (EMD), it will remove the high frequency components of the signal and return the sum of the remaining IMFs. It acts as a low pass filter.
 
@@ -14,7 +14,7 @@ def emd_smoothing(
     -----
         signal (pd.Series | npt.NDArray[np.float64]): The signal to smooth, a pandas Series or numpy array containing float.
 
-        frequency_cutoff (int, optional): The number of the high frequency layer to remove, the higher this number is the smoother the signal resulting will be. Defaults to 3.
+        layer_cutoff (int, optional): The number of the high frequency layer to remove, the higher this number is the smoother the signal resulting will be. Defaults to 3.
 
     Returns:
     -----
@@ -29,17 +29,17 @@ def emd_smoothing(
     imfs = __emd_decomposition(signal_np)  # type: ignore
 
     assert (
-        frequency_cutoff < imfs.shape[0]
-        and frequency_cutoff > 0
-        and isinstance(frequency_cutoff, int)
-    ), f"frequency_cutoff must an integer higher than 0 and less than {imfs.shape[0]}"
+        layer_cutoff < imfs.shape[0]
+        and layer_cutoff > 0
+        and isinstance(layer_cutoff, int)
+    ), f"layer_cutoff must an integer higher than 0 and less than {imfs.shape[0]}"
 
-    return np.sum(imfs[frequency_cutoff:, :], axis=0)
+    return np.sum(imfs[layer_cutoff:, :], axis=0)
 
 
 def emd_detrending(
     signal: pd.Series | npt.NDArray[np.float64],
-    frequency_cutoff: int = 3,
+    layer_cutoff: int = 3,
 ) -> npt.NDArray[np.float64]:
     """Smooth a signal using Empirical Mode Decomposition (EMD), it will remove the low frequency components of the signal and return the sum of the remaining IMFs. It acts as a low pass filter.
 
@@ -47,7 +47,7 @@ def emd_detrending(
     -----
         signal (pd.Series | npt.NDArray[np.float64]): The signal to smooth, a pandas Series or numpy array containing float.
 
-        frequency_cutoff (int, optional): The number of the low frequency layer to remove, the higher this number is the less detrended the resulting signal will be. Defaults to 3.
+        layer_cutoff (int, optional): The number of the low frequency layer to remove, the higher this number is the less detrended the resulting signal will be. Defaults to 3.
 
     Returns:
     -----
@@ -62,12 +62,12 @@ def emd_detrending(
     imfs = __emd_decomposition(signal_np)  # type: ignore
 
     assert (
-        frequency_cutoff < imfs.shape[0]
-        and frequency_cutoff > 0
-        and isinstance(frequency_cutoff, int)
-    ), f"frequency_cutoff must an integer higher than 0 and less than {imfs.shape[0]}"
+        layer_cutoff < imfs.shape[0]
+        and layer_cutoff > 0
+        and isinstance(layer_cutoff, int)
+    ), f"layer_cutoff must an integer higher than 0 and less than {imfs.shape[0]}"
 
-    return np.sum(imfs[:-frequency_cutoff, :], axis=0)
+    return np.sum(imfs[:-layer_cutoff, :], axis=0)
 
 
 def __emd_decomposition(
