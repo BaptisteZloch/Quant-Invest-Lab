@@ -29,8 +29,10 @@ def emd_smoothing(
     imfs = __emd_decomposition(signal_np)  # type: ignore
 
     assert (
-        frequency_cutoff < imfs.shape[0] and frequency_cutoff > 0
-    ), f"low_frequency_cutoff must higher than 0 and less than {imfs.shape[0]}"
+        frequency_cutoff < imfs.shape[0]
+        and frequency_cutoff > 0
+        and isinstance(frequency_cutoff, int)
+    ), f"frequency_cutoff must an integer higher than 0 and less than {imfs.shape[0]}"
 
     return np.sum(imfs[frequency_cutoff:, :], axis=0)
 
@@ -60,8 +62,10 @@ def emd_detrending(
     imfs = __emd_decomposition(signal_np)  # type: ignore
 
     assert (
-        frequency_cutoff < imfs.shape[0] and frequency_cutoff > 0
-    ), f"low_frequency_cutoff must higher than 0 and less than {imfs.shape[0]}"
+        frequency_cutoff < imfs.shape[0]
+        and frequency_cutoff > 0
+        and isinstance(frequency_cutoff, int)
+    ), f"frequency_cutoff must an integer higher than 0 and less than {imfs.shape[0]}"
 
     return np.sum(imfs[:-frequency_cutoff, :], axis=0)
 
@@ -84,7 +88,7 @@ def __emd_decomposition(
 
 
 def fft_smoothing(
-    signal: pd.Series | npt.NDArray[np.float64], cutoff_freq: float = 0.1
+    signal: pd.Series | npt.NDArray[np.float64], frequency_cutoff: float = 0.1
 ) -> npt.NDArray[np.float64]:
     """Fast fourier transform smoother (low pass filter)
 
@@ -92,7 +96,7 @@ def fft_smoothing(
     -----
         signal (pd.Series | npt.NDArray[np.float64]): The signal to smooth, a pandas Series or numpy array containing float.
 
-        cutoff_freq (float, optional): This frequency separates the low-frequency components that you want to keep from the high-frequency components that you want to remove. Defaults to 0.0005.
+        frequency_cutoff (float, optional): This frequency separates the low-frequency components that you want to keep from the high-frequency components that you want to remove. Defaults to 0.0005.
 
     Returns:
     -----
@@ -106,12 +110,12 @@ def fft_smoothing(
         raise TypeError("signal must be a pandas.Series or a numpy array")
 
     fft_signal, freq = __fft_decomposition(signal_np)  # type: ignore
-    mask = np.abs(freq) < cutoff_freq
+    mask = np.abs(freq) < frequency_cutoff
     return np.fft.ifft(mask * fft_signal).real
 
 
 def fft_detrending(
-    signal: pd.Series, cutoff_freq: float = 0.1
+    signal: pd.Series, frequency_cutoff: float = 0.1
 ) -> npt.NDArray[np.float64]:
     """Fast fourier transform detrending (high pass filter)
 
@@ -119,7 +123,7 @@ def fft_detrending(
     -----
         signal (pd.Series | npt.NDArray[np.float64]): The signal to smooth, a pandas Series or numpy array containing float.
 
-        cutoff_freq (float, optional): This frequency separates the low-frequency components that you want to remove from the high-frequency components that you want to keep. Defaults to 0.0005.
+        frequency_cutoff (float, optional): This frequency separates the low-frequency components that you want to remove from the high-frequency components that you want to keep. Defaults to 0.0005.
 
     Returns:
     -----
@@ -133,7 +137,7 @@ def fft_detrending(
         raise TypeError("signal must be a pandas.Series or a numpy array")
 
     fft_signal, freq = __fft_decomposition(signal_np)  # type: ignore
-    mask = np.abs(freq) > cutoff_freq
+    mask = np.abs(freq) > frequency_cutoff
     return np.fft.ifft(mask * fft_signal).real
 
 
