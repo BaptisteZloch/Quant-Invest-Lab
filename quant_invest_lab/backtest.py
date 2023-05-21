@@ -326,7 +326,36 @@ def __ohlc_backtest_one_position_type(
         else:
             timeframe_count += 1
         previous_row = row
+    # Close last trade
+    if position_opened is True:
+        # print("Closing trade at end of backtest")
+        position_opened = False
+        current_trade["exit_date"] = ohlcv_df.index[-1]
+        current_trade["exit_price"] = ohlcv_df.iloc[-1].Close
+        current_trade["exit_reason"] = "Exit position triggered"
 
+        rets = (
+            returns_signs[position_type]
+            * ohlcv_df.loc[
+                current_trade["entry_date"] : current_trade["exit_date"]
+            ].Returns
+        )
+
+        if isinstance(taker_fees, float) and taker_fees > 0:
+            rets.iloc[0] = rets.iloc[0] - taker_fees
+            rets.iloc[-1] = rets.iloc[-1] - taker_fees
+
+        current_trade["trade_return"] = ((rets + 1).cumprod().iloc[-1]) - 1  # ret
+
+        trades_df = pd.concat(
+            [trades_df, pd.DataFrame([current_trade])], ignore_index=True
+        )
+        returns_df = pd.concat(
+            [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
+            ignore_index=False,
+        )
+        timeframe_count = 0
+        current_trade = {}
     return trades_df, returns_df
 
 
