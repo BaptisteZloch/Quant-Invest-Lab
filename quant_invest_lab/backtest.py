@@ -455,6 +455,11 @@ def ohlc_long_only_backtester(
         )
     else:
         print("No fees considered here.")
+    if take_profit != np.inf:
+        print(f"Take profit is set to {take_profit*100:.2f} % of the buy price")
+    if stop_loss != np.inf:
+        print(f"Stop loss is set to {stop_loss*100:.2f} % of the buy price")
+    print("Long only position")
 
     print_ohlc_backtest_report(
         returns_df=returns_df,
@@ -566,6 +571,11 @@ def ohlc_short_only_backtester(
         )
     else:
         print("No fees considered here.")
+    if take_profit != np.inf:
+        print(f"Take profit is set to {take_profit*100:.2f} % of the buy price")
+    if stop_loss != np.inf:
+        print(f"Stop loss is set to {stop_loss*100:.2f} % of the buy price")
+    print("Short only positions")
     print_ohlc_backtest_report(
         returns_df=returns_df,
         trades_df=trades_df,
