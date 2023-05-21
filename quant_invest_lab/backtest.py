@@ -170,7 +170,7 @@ def __ohlc_backtest_one_position_type(
     """
     assert position_type in ["long", "short"], "position_type must be long or short"
 
-    returns_signs = {"long": 1, "short": -1}
+    RETURNS_SIGNS = {"long": 1, "short": -1}
     previous_row = ohlcv_df.iloc[0]
     position_opened = False
     timeframe_count = 0
@@ -191,7 +191,7 @@ def __ohlc_backtest_one_position_type(
     returns_df = pd.DataFrame(columns=["Returns"])
 
     for index, row in tqdm(
-        ohlcv_df[1:].iterrows(),
+        ohlcv_df[1:-1].iterrows(),
         desc="Backtesting...",
         total=ohlcv_df.shape[0] - 1,
         leave=False,
@@ -228,7 +228,7 @@ def __ohlc_backtest_one_position_type(
             )
 
             rets = (
-                returns_signs[position_type]
+                RETURNS_SIGNS[position_type]
                 * ohlcv_df.loc[
                     current_trade["entry_date"] : current_trade["exit_date"]
                 ].Returns
@@ -273,7 +273,7 @@ def __ohlc_backtest_one_position_type(
             )
 
             rets = (
-                returns_signs[position_type]
+                RETURNS_SIGNS[position_type]
                 * ohlcv_df.loc[
                     current_trade["entry_date"] : current_trade["exit_date"]
                 ].Returns
@@ -296,13 +296,15 @@ def __ohlc_backtest_one_position_type(
             position_opened is True
             and exit_function(row, previous_row, timeframe_count) is True
         ):
+            next_row_index = ohlcv_df.index.get_loc(index) + 1  # To close on next open.
+
             position_opened = False
-            current_trade["exit_date"] = index
-            current_trade["exit_price"] = row.Close
+            current_trade["exit_date"] = ohlcv_df.iloc[next_row_index].name
+            current_trade["exit_price"] = ohlcv_df.iloc[next_row_index].Open
             current_trade["exit_reason"] = "Exit position triggered"
 
             rets = (
-                returns_signs[position_type]
+                RETURNS_SIGNS[position_type]
                 * ohlcv_df.loc[
                     current_trade["entry_date"] : current_trade["exit_date"]
                 ].Returns
@@ -335,7 +337,7 @@ def __ohlc_backtest_one_position_type(
         current_trade["exit_reason"] = "Exit position triggered"
 
         rets = (
-            returns_signs[position_type]
+            RETURNS_SIGNS[position_type]
             * ohlcv_df.loc[
                 current_trade["entry_date"] : current_trade["exit_date"]
             ].Returns
