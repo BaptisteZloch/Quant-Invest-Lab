@@ -13,6 +13,7 @@ from quant_invest_lab.contants import (
     TIMEFRAME_TO_FREQ,
     TIMEFRAMES,
 )
+from quant_invest_lab.types import Timeframe
 
 
 def generate_brownian_paths(
@@ -29,8 +30,14 @@ def generate_brownian_paths(
     paths = np.zeros((n_paths, n_steps + 1))
     paths[:, 0] = np.log(s0)
 
-    for i in tqdm(range(0, n_paths)):
-        for j in range(n_steps):
+    for i in tqdm(
+        range(0, n_paths), desc="Simulating Brownian Motion paths...", leave=False
+    ):
+        for j in tqdm(
+            range(n_steps),
+            desc="Simulating Brownian Motion path's steps...",
+            leave=False,
+        ):
             paths[i, j + 1] = (
                 paths[i, j]
                 + (mu * 0.5 * sigma**2) * dt
@@ -92,7 +99,7 @@ def generate_open(
         open_divided_by_close.values,
         distributions=["laplace"],
     )
-    f.fit(max_workers=cpu_count(), n_jobs=cpu_count())
+    f.fit(max_workers=cpu_count(), n_jobs=cpu_count(), progress=False)
     return (
         np.random.laplace(
             f.fitted_param["laplace"][0],
@@ -109,7 +116,7 @@ def generate_high_coef(
         high_from_body.values,
         distributions=["expon"],
     )
-    f.fit(max_workers=cpu_count(), n_jobs=cpu_count())
+    f.fit(max_workers=cpu_count(), n_jobs=cpu_count(), progress=False)
 
     return 1 + np.random.exponential(f.fitted_param["expon"][-1], n)
 
@@ -121,26 +128,16 @@ def generate_low_coef(
         low_from_body.values,
         distributions=["expon"],
     )
-    f.fit(max_workers=cpu_count(), n_jobs=cpu_count())
+    f.fit(max_workers=cpu_count(), n_jobs=cpu_count(), progress=False)
     return np.random.exponential(f.fitted_param["expon"][-1], n)
 
 
 def generate_brownian_candle_from_dataframe(
     dataframe: pd.DataFrame,
-    timeframe: Literal[
-        "1min",
-        "2min",
-        "5min",
-        "15min",
-        "30min",
-        "1hour",
-        "2hour",
-        "4hour",
-        "12hour",
-        "1day",
-    ] = "1day",
+    timeframe: Timeframe = "1day",
     generated_dataframe_length: int = 5000,
     date_index: bool = True,
+    compute_return: bool = True,
 ) -> pd.DataFrame:
     """Generate a new dataframe with the same structure (global continuous distribution) as the initial dataframe but with generated data using a geometric brownian motion.
 
@@ -148,12 +145,13 @@ def generate_brownian_candle_from_dataframe(
     ----
         dataframe (pd.DataFrame): The initial dataframe, it should be a real dataframe containing OHLC data. I must contains OHLC columns. This dataframe will to extract the mean return, the std return, the initial price and the distribution of the open, high and low prices.
 
-        timeframe (Literal[ &quot;1min&quot;, &quot;2min&quot;, &quot;5min&quot;, &quot;15min&quot;, &quot;30min&quot;, &quot;1hour&quot;, &quot;2hour&quot;, &quot;4hour&quot;, &quot;12hour&quot;, &quot;1day&quot;, ], optional): The timeframe or data interval frequency, it's used to compute the period parameter. Defaults to "1day".
+        timeframe (Timeframe, optional): The timeframe or data interval frequency, it's used to compute the period parameter. Defaults to "1day".
 
         generated_dataframe_length (int, optional): The number of record to generate in the new dataframe. Defaults to 5000.
 
         date_index (bool, optional): Create as of today date index. Defaults to True.
 
+        compute_return (bool, optional): Compute the returns of the generated dataframe. Defaults to True.
     Returns:
     ----
         pd.DataFrame: The generated dataframe and it's candle stick.
@@ -241,4 +239,6 @@ def generate_brownian_candle_from_dataframe(
             ),
             inplace=True,
         )
+    if compute_return:
+        generated_ohlc["Returns"] = generated_ohlc.Close.pct_change().fillna(0.0)
     return generated_ohlc.drop(columns=["High_from_body", "Low_from_body"])
