@@ -10,7 +10,7 @@ from kucoin.client import Market
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-from quant_invest_lab.contants import TIMEFRAME_IN_S, TIMEFRAMES
+from quant_invest_lab.constants import TIMEFRAME_IN_S, TIMEFRAMES
 from quant_invest_lab.types import Timeframe
 
 

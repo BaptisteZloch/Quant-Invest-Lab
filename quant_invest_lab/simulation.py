@@ -8,7 +8,7 @@ from tqdm import tqdm
 from fitter import Fitter
 from psutil import cpu_count
 
-from quant_invest_lab.contants import (
+from quant_invest_lab.constants import (
     TIMEFRAME_ANNUALIZED,
     TIMEFRAME_TO_FREQ,
     TIMEFRAMES,

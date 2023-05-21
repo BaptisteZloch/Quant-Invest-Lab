@@ -21,7 +21,7 @@ from quant_invest_lab.metrics import (
     value_at_risk,
     conditional_value_at_risk,
 )
-from quant_invest_lab.contants import TIMEFRAME_ANNUALIZED, TIMEFRAMES
+from quant_invest_lab.constants import TIMEFRAME_ANNUALIZED, TIMEFRAMES
 from quant_invest_lab.types import Timeframe
 
 

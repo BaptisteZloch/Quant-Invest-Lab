@@ -1,3 +1,5 @@
+from quant_invest_lab.types import Timeframe
+
 TIMEFRAME_ANNUALIZED = {
     "1min": int(365 * 24 / 1 * 60),
     "2min": int(365 * 24 / 1 * 30),
@@ -24,7 +26,7 @@ TIMEFRAME_TO_FREQ = {
     "1day": "1D",
 }
 
-TIMEFRAMES = (
+TIMEFRAMES: tuple = (
     "1min",
     "2min",
     "5min",
