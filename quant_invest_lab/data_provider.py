@@ -60,7 +60,6 @@ def build_multi_crypto_dataframe(
     return df if not drop_na else df.dropna()
 
 
-@lru_cache(maxsize=32, typed=True)
 def download_crypto_historical_data(
     symbol: str,
     timeframe: Timeframe = "1hour",
@@ -344,6 +343,7 @@ class CryptoService:
         ), "Error, wrong symbol, provide something like 'BTC-USDT'."
         return self.__refresh_or_download(symbol, timeframe)
 
+    @lru_cache(maxsize=32, typed=True)
     def refresh_list_of_symbols(self) -> None:
         """Function that refreshes the database's crypto listing."""
         self.__init_directories()

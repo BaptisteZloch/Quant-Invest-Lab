@@ -93,8 +93,8 @@ def treynor_ratio(
     -----
         float: The annualized treynor ratio.
     """
-    beta = np.cov(returns, benchmark_returns)[0, 1] / np.var(returns)
-    return (returns.mean() * N - risk_free_rate) / (beta * (N**0.5))
+    beta, alpha = np.polyfit(benchmark_returns, returns, 1)
+    return (returns.mean() * N - risk_free_rate) / float(beta)
 
 
 def sortino_ratio(
@@ -199,7 +199,9 @@ def max_drawdown(
 
 
 def information_ratio(
-    portfolio_returns: pd.Series, benchmark_returns: pd.Series
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    N: Union[int, float] = 365,
 ) -> float:
     """The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark, usually an index, compared to the volatility of those returns. The information ratio (IR) measures a portfolio manager's ability to generate excess returns relative to a benchmark but also attempts to identify the consistency of the investor.
 
@@ -209,12 +211,17 @@ def information_ratio(
 
         benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
 
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
     Returns:
     -----
         float: The annualized information ratio.
     """
-    return (portfolio_returns - benchmark_returns).mean() / tracking_error(
-        portfolio_returns, benchmark_returns
+    return (
+        (portfolio_returns - benchmark_returns).mean()
+        * N
+        / tracking_error(portfolio_returns, benchmark_returns)
+        * N**0.5
     )
 
 
