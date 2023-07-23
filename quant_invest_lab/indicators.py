@@ -9,6 +9,25 @@ from ta.momentum import ppo_hist
 from ta.volatility import average_true_range
 
 
+def efficiency_ratio_indicator(close: pd.Series, window: int = 60) -> pd.Series:
+    """The Kaufman Efficiency Ratio is a ratio of the price direction to the price volatility. The result is a number, which oscillates between +1 and -1. The center point is 0. +1 indicates a financial instrument with a perfectly efficient upward trend.  -1 indicates a financial instrument with a perfectly efficient downward trend. It is virtually impossible for an instrument to have a perfect efficiency ratio (+1 or -1). The more efficient the ratio, the clearer the trend.
+
+    Args:
+    ----
+        close (pd.Series): The close series from the OHLCV Data.
+
+        window (int, optional): The indicator window for the rolling window. Defaults to 60.
+
+    Returns:
+    ----
+        pd.Series: The Kauffman efficiency ratio indicator.
+    """
+    return close.rolling(window).apply(
+        lambda prices: ((prices[-1] / prices[0]) - 1)
+        / prices.pct_change().fillna(0).abs().sum()
+    )
+
+
 def dynamic_time_wrapping_indicator(
     timeseries_1: pd.Series, timeseries_2: pd.Series, window: int = 20
 ) -> pd.Series:
