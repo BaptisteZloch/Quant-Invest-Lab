@@ -217,11 +217,8 @@ def information_ratio(
     -----
         float: The annualized information ratio.
     """
-    return (
-        (portfolio_returns - benchmark_returns).mean()
-        * N
-        / tracking_error(portfolio_returns, benchmark_returns)
-        * N**0.5
+    return (portfolio_returns - benchmark_returns).mean() / tracking_error(
+        portfolio_returns, benchmark_returns
     )
 
 

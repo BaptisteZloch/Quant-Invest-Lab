@@ -14,6 +14,9 @@ from quant_invest_lab.metrics import (
     profit_factor,
     sharpe_ratio,
     calmar_ratio,
+    information_ratio,
+    tracking_error,
+    treynor_ratio,
     sortino_ratio,
     max_drawdown,
     drawdown,
@@ -26,7 +29,6 @@ from quant_invest_lab.types import Timeframe
 
 
 def print_ohlc_backtest_report(
-    returns_df: pd.DataFrame,
     trades_df: pd.DataFrame,
     ohlcv_df: pd.DataFrame,
     timeframe: Timeframe,
@@ -35,13 +37,14 @@ def print_ohlc_backtest_report(
     good_trades = trades_df.loc[trades_df["trade_return"] > 0]
     bad_trades = trades_df.loc[trades_df["trade_return"] < 0]
     total_trades = len(trades_df)
+    beta, alpha = np.polyfit(ohlcv_df["Returns"], ohlcv_df["Strategy_returns"], 1)
     print(f"\n{'  Strategy performances  ':-^50}")
 
     print(
-        f'Strategy final net balance: {returns_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, return: {(returns_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
+        f'Strategy final net balance: {ohlcv_df["Strategy_cum_returns"].iloc[-1]*initial_equity:.2f} $, return: {(ohlcv_df["Strategy_cum_returns"].iloc[-1]-1)*100:.2f} %'
     )
     print(
-        f'Buy & Hold final net balance: {ohlcv_df["Cum_Returns"].iloc[-1]*initial_equity:.2f} $, returns: {(ohlcv_df["Cum_Returns"].iloc[-1]-1)*100:.2f} %'
+        f'Buy & Hold final net balance: {ohlcv_df["Cum_returns"].iloc[-1]*initial_equity:.2f} $, returns: {(ohlcv_df["Cum_returns"].iloc[-1]-1)*100:.2f} %'
     )
     print(f"Strategy winrate ratio: {100 * len(good_trades) / total_trades:.2f} %")
     print(
@@ -54,43 +57,54 @@ def print_ohlc_backtest_report(
     print(f"\n{'  Returns statistical information  ':-^50}")
 
     print(
-        f"Expected return : {100*returns_df['Returns'].mean():.2f} %, annuzalized: {100*returns_df['Returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
+        f"Expected return : {100*ohlcv_df['Strategy_returns'].mean():.2f} %, annuzalized: {100*ohlcv_df['Strategy_returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
     )
     print(
-        f"Median return : {100*returns_df['Returns'].median():.2f} %, annuzalized: {100*returns_df['Returns'].median()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
+        f"Median return : {100*ohlcv_df['Strategy_returns'].median():.2f} %, annuzalized: {100*ohlcv_df['Strategy_returns'].median()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
     )
     print(
-        f'Expected volatility: {100*returns_df["Returns"].std():.2f} %, annualized: {100*returns_df["Returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} %'
+        f'Expected volatility: {100*ohlcv_df["Strategy_returns"].std():.2f} %, annualized: {100*ohlcv_df["Strategy_returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} %'
     )
     print(
-        f"Skewness: {skew(returns_df.Returns.values):.2f} vs {skew(ohlcv_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
+        f"Skewness: {skew(ohlcv_df['Strategy_returns'].values):.2f} vs {skew(ohlcv_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
     )
     print(
-        f"Kurtosis: {kurtosis(returns_df.Returns.values):.2f} vs {kurtosis(ohlcv_df.Returns.values):.2f} (buy and hold)",
+        f"Kurtosis: {kurtosis(ohlcv_df['Strategy_returns'].values):.2f} vs {kurtosis(ohlcv_df.Returns.values):.2f} (buy and hold)",
         ", >3 = fat tails, <3 = thin tails -> the lower the better",
     )
     print(
-        f"{timeframe}-95%-VaR: {100*value_at_risk(returns_df.Returns):.2f} % vs {100*value_at_risk(ohlcv_df.Returns):.2f} % (buy and hold) -> the lower the better"
+        f"{timeframe}-95%-VaR: {100*value_at_risk(ohlcv_df['Strategy_returns']):.2f} % vs {100*value_at_risk(ohlcv_df['Returns']):.2f} % (buy and hold) -> the lower the better"
     )
     print(
-        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(returns_df.Returns):.2f} % vs {100*conditional_value_at_risk(ohlcv_df.Returns):.2f} % (buy and hold) -> the lower the better"
+        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(ohlcv_df['Strategy_returns']):.2f} % vs {100*conditional_value_at_risk(ohlcv_df['Returns']):.2f} % (buy and hold) -> the lower the better"
     )
 
     print(f"\n{'  Strategy statistical information  ':-^50}")
     print(
-        f"Max drawdown: {100*max_drawdown(returns_df.Returns):.2f} % vs {100*max_drawdown(ohlcv_df.Returns):.2f} % (buy and hold)"
+        f"Max drawdown: {100*max_drawdown(ohlcv_df['Strategy_returns']):.2f} % vs {100*max_drawdown(ohlcv_df['Returns']):.2f} % (buy and hold)"
     )
     print(
-        f"Kelly criterion: {100*kelly_criterion(returns_df.Returns):.2f} % vs {100*kelly_criterion(ohlcv_df.Returns):.2f} % (buy and hold)"
+        f"Kelly criterion: {100*kelly_criterion(ohlcv_df['Strategy_returns']):.2f} % vs {100*kelly_criterion(ohlcv_df['Returns']):.2f} % (buy and hold)"
+    )
+    print(f"Benckmark sensivity (beta): {beta:.2f} vs 1 (buy and hold)")
+    print(f"Excess return (alpha): {alpha:.4f} vs 0 (buy and hold)")
+    print(
+        f"Tracking error: {100*tracking_error(ohlcv_df['Strategy_returns'], ohlcv_df['Returns']):.2f} %"
     )
     print(
-        f"Sharpe ratio (annualized): {sharpe_ratio(returns_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sharpe ratio (annualized): {sharpe_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Sortino ratio (annualized): {sortino_ratio(returns_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sortino ratio (annualized): {sortino_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Calmar ratio (annualized): {calmar_ratio(returns_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} (risk free rate = buy and hold)"
+        f"Treynor ratio (annualized): {treynor_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
+        f"Calmar ratio (annualized): {calmar_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+    )
+    print(
+        f"Information ratio (annualized): {information_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
     )
 
     print(f"\n{'  Trades informations  ':-^50}")
@@ -109,7 +123,7 @@ def print_ohlc_backtest_report(
         f"  Median good trades return: {100*good_trades['trade_return'].median():.2f} %"
     )
     print(
-        f"  Best trades return: {100*trades_df['trade_return'].max():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmax()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmax()]['trade_duration']}"
+        f"  Best trades return: {100*trades_df['trade_return'].max():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmax()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmax()]['trade_duration']}"  # type: ignore
     )
     print(
         f"  Mean good trade duration: {str((good_trades['trade_duration']).mean()).split('.')[0]}"
@@ -120,7 +134,7 @@ def print_ohlc_backtest_report(
         f"  Median bad trades return: {100*bad_trades['trade_return'].median():.2f} %"
     )
     print(
-        f"  Worst trades return: {100*trades_df['trade_return'].min():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmin()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmin()]['trade_duration']}"
+        f"  Worst trades return: {100*trades_df['trade_return'].min():.2f} % | Date: {trades_df.iloc[trades_df['trade_return'].idxmin()]['exit_date']} | Duration: {trades_df.iloc[trades_df['trade_return'].idxmin()]['trade_duration']}"  # type: ignore
     )
     print(
         f"  Mean bad trade duration: {str((bad_trades['trade_duration']).mean()).split('.')[0]}"
@@ -166,7 +180,7 @@ def __ohlc_backtest_one_position_type(
 
     Returns:
     -----
-        tuple[pd.DataFrame, pd.DataFrame]: It returns 2 dataframes, the first is the trades_df : trade summary dataframe and the second is the returns dataframe : returns_df.
+        tuple[pd.DataFrame, pd.DataFrame]: It returns 2 dataframes, the first is the trades_df : trade summary dataframe and the second is the OHMCV dataframe that contains a new column Strategy returns.
     """
     assert position_type in ["long", "short"], "position_type must be long or short"
 
@@ -187,8 +201,7 @@ def __ohlc_backtest_one_position_type(
             "trade_return",
         ]
     )
-
-    returns_df = pd.DataFrame(columns=["Returns"])
+    ohlcv_df["Strategy_returns"] = 0
 
     for row in tqdm(
         ohlcv_df[1:-1].itertuples(index=True),
@@ -242,10 +255,7 @@ def __ohlc_backtest_one_position_type(
             trades_df = pd.concat(
                 [trades_df, pd.DataFrame([current_trade])], ignore_index=True
             )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
+            ohlcv_df.loc[rets.index[0] : rets.index[-1], "Strategy_returns"] = rets
             timeframe_count = 0
 
             current_trade = {}
@@ -286,10 +296,7 @@ def __ohlc_backtest_one_position_type(
             trades_df = pd.concat(
                 [trades_df, pd.DataFrame([current_trade])], ignore_index=True
             )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
+            ohlcv_df.loc[rets.index[0] : rets.index[-1], "Strategy_returns"] = rets
             timeframe_count = 0
             current_trade = {}
         elif (
@@ -321,10 +328,8 @@ def __ohlc_backtest_one_position_type(
             trades_df = pd.concat(
                 [trades_df, pd.DataFrame([current_trade])], ignore_index=True
             )
-            returns_df = pd.concat(
-                [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-                ignore_index=False,
-            )
+            ohlcv_df.loc[rets.index[0] : rets.index[-1], "Strategy_returns"] = rets
+
             timeframe_count = 0
             current_trade = {}
         else:
@@ -334,7 +339,7 @@ def __ohlc_backtest_one_position_type(
     if position_opened is True:
         # print("Closing trade at end of backtest")
         position_opened = False
-        current_trade["exit_date"] = ohlcv_df.index[-1]
+        current_trade["exit_date"] = ohlcv_df.index[-1]  # type: ignore
         current_trade["exit_price"] = ohlcv_df.iloc[-1].Close
         current_trade["exit_reason"] = "Exit position triggered"
 
@@ -354,13 +359,11 @@ def __ohlc_backtest_one_position_type(
         trades_df = pd.concat(
             [trades_df, pd.DataFrame([current_trade])], ignore_index=True
         )
-        returns_df = pd.concat(
-            [returns_df, pd.DataFrame({"Returns": rets.values}, index=rets.index)],
-            ignore_index=False,
-        )
+        ohlcv_df.loc[rets.index[0] : rets.index[-1], "Strategy_returns"] = rets
+
         timeframe_count = 0
         current_trade = {}
-    return trades_df, returns_df
+    return trades_df, ohlcv_df
 
 
 def ohlc_long_only_backtester(
@@ -421,7 +424,7 @@ def ohlc_long_only_backtester(
     ), "Dataframe must have columns Open, High, Low, Close, Returns"
 
     ohlcv_df = df.copy()
-    trades_df, returns_df = __ohlc_backtest_one_position_type(
+    trades_df, ohlcv_df = __ohlc_backtest_one_position_type(
         ohlcv_df,
         long_entry_function,
         long_exit_function,
@@ -432,18 +435,18 @@ def ohlc_long_only_backtester(
         taker_fees=taker_fees,
     )
 
-    returns_df["Cum_Returns"] = cumulative_returns(returns_df["Returns"])
+    ohlcv_df["Strategy_cum_returns"] = cumulative_returns(ohlcv_df["Strategy_returns"])
 
     if parameter_optimization is True:
         if len(trades_df) > 0:
-            return returns_df["Cum_Returns"].iloc[-1]
+            return ohlcv_df["Strategy_cum_returns"].iloc[-1]
         return 0.0
 
     assert len(trades_df) > 0, "No trades were generated"
 
-    returns_df["Drawdown"] = drawdown(returns_df["Returns"])
-    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
-    ohlcv_df["Drawdown"] = drawdown(df["Returns"])
+    ohlcv_df["Strategy_drawdown"] = drawdown(ohlcv_df["Strategy_returns"])
+    ohlcv_df["Cum_returns"] = cumulative_returns(ohlcv_df["Returns"])
+    ohlcv_df["Drawdown"] = drawdown(ohlcv_df["Returns"])
     trades_df["trade_duration"] = trades_df["exit_date"] - trades_df["entry_date"]
 
     print(f"{'  Initial informations  ':-^50}")
@@ -462,7 +465,6 @@ def ohlc_long_only_backtester(
     print("Long only position")
 
     print_ohlc_backtest_report(
-        returns_df=returns_df,
         trades_df=trades_df,
         ohlcv_df=ohlcv_df,
         timeframe=timeframe,
@@ -470,13 +472,13 @@ def ohlc_long_only_backtester(
     )
 
     if plot_result is True:
-        plot_from_trade_df(trades_df, ohlcv_df, returns_df)
+        plot_from_trade_df(ohlcv_df)
     if get_returns_df and get_trade_df:
-        return trades_df, returns_df
+        return trades_df, ohlcv_df
     if get_trade_df:
         return trades_df
     if get_returns_df:
-        return returns_df
+        return ohlcv_df
 
 
 def ohlc_short_only_backtester(
@@ -537,7 +539,7 @@ def ohlc_short_only_backtester(
     ), "Dataframe must have columns Open, High, Low, Close, Returns"
 
     ohlcv_df = df.copy()
-    trades_df, returns_df = __ohlc_backtest_one_position_type(
+    trades_df, ohlcv_df = __ohlc_backtest_one_position_type(
         ohlcv_df,
         short_entry_function,
         short_exit_function,
@@ -548,18 +550,18 @@ def ohlc_short_only_backtester(
         taker_fees=taker_fees,
     )
 
-    returns_df["Cum_Returns"] = cumulative_returns(returns_df["Returns"])
+    ohlcv_df["Strategy_cum_returns"] = cumulative_returns(ohlcv_df["Strategy_returns"])
 
     if parameter_optimization is True:
         if len(trades_df) > 0:
-            return returns_df["Cum_Returns"].iloc[-1]
+            return ohlcv_df["Strategy_cum_returns"].iloc[-1]
         return 0.0
 
     assert len(trades_df) > 0, "No trades were generated"
 
-    returns_df["Drawdown"] = drawdown(returns_df["Returns"])
-    ohlcv_df["Cum_Returns"] = cumulative_returns(df["Returns"])
-    ohlcv_df["Drawdown"] = drawdown(df["Returns"])
+    ohlcv_df["Strategy_drawdown"] = drawdown(ohlcv_df["Strategy_returns"])
+    ohlcv_df["Cum_returns"] = cumulative_returns(ohlcv_df["Returns"])
+    ohlcv_df["Drawdown"] = drawdown(ohlcv_df["Returns"])
     trades_df["trade_duration"] = trades_df["exit_date"] - trades_df["entry_date"]
 
     print(f"{'  Initial informations  ':-^50}")
@@ -577,43 +579,41 @@ def ohlc_short_only_backtester(
         print(f"Stop loss is set to {stop_loss*100:.2f} % of the buy price")
     print("Short only positions")
     print_ohlc_backtest_report(
-        returns_df=returns_df,
         trades_df=trades_df,
         ohlcv_df=ohlcv_df,
         timeframe=timeframe,
         initial_equity=initial_equity,
     )
     if plot_result is True:
-        plot_from_trade_df(trades_df, ohlcv_df, returns_df)
+        plot_from_trade_df(ohlcv_df)
     if get_returns_df and get_trade_df:
-        return trades_df, returns_df
+        return trades_df, ohlcv_df
     if get_trade_df:
         return trades_df
     if get_returns_df:
-        return returns_df
+        return ohlcv_df
 
 
-def plot_from_trade_df(
-    trade_df: pd.DataFrame, price_df: pd.DataFrame, returns_df: pd.DataFrame
-) -> None:
+def plot_from_trade_df(price_df: pd.DataFrame) -> None:
     """Plot historical price, equity progression, drawdown evolution and return distribution.
 
     Args:
     ----
-        trade_df (pd.DataFrame): The trade summary dataframe.
         price_df (pd.DataFrame): The historical price dataframe.
-        returns_df (pd.DataFrame): The detailed strategy returns dataframe.
+
     """
     fig = make_subplots(
-        rows=4,
-        cols=1,
+        rows=3,
+        cols=2,
         subplot_titles=(
             "Historical price",
-            "Equity progression",
-            "Drawdown Evolution",
             "Return distribution",
+            "Equity progression",
+            "Expected return profile",
+            "Drawdown Evolution",
+            "Return per decile",
         ),
-        shared_xaxes=True,
+        shared_xaxes=False,
     )
 
     fig.add_trace(
@@ -624,22 +624,21 @@ def plot_from_trade_df(
             high=price_df["High"],
             low=price_df["Low"],
             close=price_df["Close"],
+            legendgroup="1",
         ),
         row=1,
         col=1,
     )
-    fig.update_yaxes(title_text="Historical price (USDT)", row=1, col=1)
+    fig.update_yaxes(title_text="Historical price", row=1, col=1)
     fig.update_xaxes(title_text="Datetime", row=1, col=1)
-    trades = trade_df.copy()
-    trades["date"] = trades["exit_date"]
-    trades = trades.set_index("date")
 
     fig.add_trace(
         go.Scatter(
             name="Buy and hold cumulative return",
             x=price_df.index,
-            y=price_df["Cum_Returns"],
+            y=price_df["Cum_returns"],
             line={"shape": "hv", "color": "violet"},
+            legendgroup="2",
         ),
         row=2,
         col=1,
@@ -647,9 +646,10 @@ def plot_from_trade_df(
     fig.add_trace(
         go.Scatter(
             name="Strategy cumulative return",
-            x=returns_df.index,
-            y=returns_df["Cum_Returns"],
+            x=price_df.index,
+            y=price_df["Strategy_cum_returns"],
             line={"shape": "hv", "color": "salmon"},
+            legendgroup="2",
         ),
         row=2,
         col=1,
@@ -657,6 +657,7 @@ def plot_from_trade_df(
     fig.update_yaxes(type="log", row=2, col=1)
     fig.update_yaxes(title_text="Log cumulative returns", row=2, col=1)
     fig.update_xaxes(title_text="Datetime", row=2, col=1)
+
     fig.add_trace(
         go.Scatter(
             name="Buy and hold drawdown",
@@ -665,6 +666,7 @@ def plot_from_trade_df(
             line={"shape": "hv", "color": "violet"},
             fill="tozeroy",
             fillcolor="rgba(238, 130, 238, 0.35)",
+            legendgroup="3",
         ),
         row=3,
         col=1,
@@ -672,18 +674,75 @@ def plot_from_trade_df(
     fig.add_trace(
         go.Scatter(
             name="Strategy drawdown",
-            x=returns_df.index,
-            y=returns_df["Drawdown"],
+            x=price_df.index,
+            y=price_df["Strategy_drawdown"],
             line={"shape": "hv", "color": "salmon"},
             fill="tozeroy",
             fillcolor="rgba(255, 99, 71, 0.35)",
+            legendgroup="3",
         ),
         row=3,
         col=1,
     )
 
-    fig.update_yaxes(title_text="Drawdown", row=3, col=1)
-    fig.update_xaxes(title_text="Datetime", row=3, col=1)
+    fig.update_yaxes(
+        title_text="Drawdown",
+        row=3,
+        col=1,
+    )
+    fig.update_xaxes(
+        title_text="Datetime",
+        row=3,
+        col=1,
+    )
+
+    windows_bh = [day for day in range(5, price_df["Cum_returns"].shape[0] // 3, 30)]
+
+    fig.add_trace(
+        go.Scatter(
+            name="Strategy expected return profile",
+            legendgroup="2",
+            x=windows_bh,
+            y=[
+                price_df["Strategy_cum_returns"]
+                .rolling(window)
+                .apply(lambda prices: (prices[-1] / prices[0]) - 1)
+                .mean()
+                for window in windows_bh
+            ],
+            line={"color": "salmon"},
+        ),
+        row=2,
+        col=2,
+    )
+    fig.add_trace(
+        go.Scatter(
+            name="Buy and Hold expected return profile",
+            legendgroup="2",
+            x=windows_bh,
+            y=[
+                price_df["Cum_returns"]
+                .rolling(window)
+                .apply(lambda prices: (prices[-1] / prices[0]) - 1)
+                .mean()
+                for window in windows_bh
+            ],
+            line={"color": "violet"},
+        ),
+        row=2,
+        col=2,
+    )
+    fig.update_yaxes(
+        title_text="Expected return",
+        row=2,
+        col=2,
+    )
+    fig.update_xaxes(
+        title_text="Horizon (in candles)",
+        row=2,
+        col=2,
+    )
+
     distplot_bench = ff.create_distplot(
         [price_df["Returns"]],
         ["Benchmark Returns"],
@@ -693,24 +752,67 @@ def plot_from_trade_df(
         * price_df["Returns"].std()
         / (len(price_df["Returns"]) ** (1 / 3)),
     )
-    fig.add_trace(distplot_bench["data"][0], row=4, col=1)
+    fig.add_trace(distplot_bench["data"][0], row=1, col=2)
     distplot = ff.create_distplot(
-        [returns_df["Returns"]],
+        [price_df["Strategy_returns"]],
         ["Strategy Returns"],
         colors=["salmon"],
         curve_type="kde",
         bin_size=3.5
-        * returns_df["Returns"].std()
-        / (len(returns_df["Returns"]) ** (1 / 3)),
+        * price_df["Strategy_returns"].std()
+        / (len(price_df["Strategy_returns"]) ** (1 / 3)),
     )
-    fig.add_trace(distplot["data"][0], row=4, col=1)
+    fig.add_trace(distplot["data"][0], row=1, col=2)
 
-    fig.update_xaxes(title_text="Returns", row=4, col=1)
-    fig.update_yaxes(title_text="Density", row=4, col=1)
+    fig.update_xaxes(title_text="Returns", row=1, col=2)
+    fig.update_yaxes(title_text="Density", row=1, col=2)
+
+    deciles = np.array(
+        [
+            (chunks["Returns"].mean(), chunks["Strategy_returns"].mean())
+            for chunks in np.array_split(
+                price_df.sort_values(by="Returns", ascending=True), 10
+            )
+        ]
+    )
+
+    fig.add_trace(
+        go.Bar(
+            x=np.arange(1, deciles[:, 0].shape[0] + 1),
+            y=deciles[:, 0],
+            name="Buy and hold returns",
+            marker_color="violet",
+        ),
+        row=3,
+        col=2,
+    )
+    fig.add_trace(
+        go.Bar(
+            x=np.arange(1, deciles[:, 1].shape[0] + 1),
+            y=deciles[:, 1],
+            name="Strategy returns",
+            marker_color="salmon",
+        ),
+        row=3,
+        col=2,
+    )
+
+    fig.update_xaxes(title_text="Deciles", row=3, col=2)
+    fig.update_yaxes(title_text="Returns", row=3, col=2)
+
     fig.update_layout(
+        legend=dict(
+            orientation="v",  # Set the orientation of the legends to horizontal
+            # yanchor="top",
+            # y=0,
+            # xanchor="center",
+            # x=0.0,
+        ),
+        # legend_tracegroupgap=180,
         xaxis_rangeslider_visible=False,
         showlegend=True,
         title_text="Historical price, strategy equity evolution/drawdown and returns distribution",
         height=1000,
     )
+
     fig.show()
