@@ -204,6 +204,46 @@ def downside_risk(
     return returns.loc[returns < 0].std() * (N**0.5)
 
 
+def portfolio_beta(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+) -> float:
+    """The beta coefficient is a measure of the volatility, or systematic risk, of an individual stock in comparison to the unsystematic risk of the entire market. Beta is used in the capital asset pricing model (CAPM), which describes the relationship between systematic risk and expected return for assets (usually stocks).
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
+
+    Returns:
+    -----
+        float: The beta.
+    """
+    beta, _ = np.polyfit(benchmark_returns, portfolio_returns, 1)
+    return beta
+
+
+def portfolio_alpha(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+) -> float:
+    """The alpha coefficient is an indicator of an investment's performance against a market index or benchmark that is often used by portfolio managers in evaluating the performance of a portfolio or fund manager. The alpha coefficient is also referred to as the "excess return" or "abnormal rate of return," which refers to the idea that markets are efficient, and so there is no way to systematically earn returns that exceed the broad market as a whole.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
+
+    Returns:
+    -----
+        float: The alpha.
+    """
+    _, alpha = np.polyfit(benchmark_returns, portfolio_returns, 1)
+    return alpha
+
+
 def systematic_risk(
     portfolio_returns: pd.Series,
     benchmark_returns: pd.Series,

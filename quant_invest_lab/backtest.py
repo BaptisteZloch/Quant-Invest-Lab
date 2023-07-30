@@ -21,6 +21,8 @@ from quant_invest_lab.metrics import (
     jensen_alpha,
     systematic_risk,
     specific_risk,
+    portfolio_beta,
+    portfolio_alpha,
     max_drawdown,
     drawdown,
     kelly_criterion,
@@ -29,6 +31,80 @@ from quant_invest_lab.metrics import (
 )
 from quant_invest_lab.constants import TIMEFRAME_ANNUALIZED, TIMEFRAMES
 from quant_invest_lab.types import Timeframe
+
+
+def print_portfolio_strategy_report(
+    portfolio_and_benchmark_df: pd.DataFrame, timeframe: Timeframe
+) -> None:
+    assert timeframe in TIMEFRAMES, f"Timeframe {timeframe} not supported"
+    assert set(portfolio_and_benchmark_df.columns.tolist()).issuperset({
+        "Strategy_returns",
+        "Returns",
+    }), f"Missing Strategy_returns and Returns columns in dataframe: {portfolio_and_benchmark_df.columns}"
+
+    print(f"\n{'  Returns statistical information  ':-^50}")
+
+    print(
+        f"Expected return annualized: {100*portfolio_and_benchmark_df['Strategy_returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} % vs {100*portfolio_and_benchmark_df['Returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} % (buy and hold)"
+    )
+    print(
+        f'Expected volatility annualized: {100*portfolio_and_benchmark_df["Strategy_returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} % vs {100*portfolio_and_benchmark_df["Returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} % (buy and hold)'
+    )
+    print(
+        f'Specific volatility (diversifiable) annualized: {100*specific_risk(portfolio_and_benchmark_df["Strategy_returns"], portfolio_and_benchmark_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
+    )
+    print(
+        f'Systematic volatility annualized: {100*systematic_risk(portfolio_and_benchmark_df["Strategy_returns"], portfolio_and_benchmark_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
+    )
+    print(
+        f"Skewness: {skew(portfolio_and_benchmark_df['Strategy_returns'].values):.2f} vs {skew(portfolio_and_benchmark_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
+    )
+    print(
+        f"Kurtosis: {kurtosis(portfolio_and_benchmark_df['Strategy_returns'].values):.2f} vs {kurtosis(portfolio_and_benchmark_df.Returns.values):.2f} (buy and hold)",
+        ", >3 = fat tails, <3 = thin tails -> the lower the better",
+    )
+    print(
+        f"{timeframe}-95%-VaR: {100*value_at_risk(portfolio_and_benchmark_df['Strategy_returns']):.2f} % vs {100*value_at_risk(portfolio_and_benchmark_df['Returns']):.2f} % (buy and hold) -> the lower the better"
+    )
+    print(
+        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(portfolio_and_benchmark_df['Strategy_returns']):.2f} % vs {100*conditional_value_at_risk(portfolio_and_benchmark_df['Returns']):.2f} % (buy and hold) -> the lower the better"
+    )
+
+    print(f"\n{'  Strategy statistical information  ':-^50}")
+    print(
+        f"Max drawdown: {100*max_drawdown(portfolio_and_benchmark_df['Strategy_returns']):.2f} % vs {100*max_drawdown(portfolio_and_benchmark_df['Returns']):.2f} % (buy and hold)"
+    )
+    print(
+        f"Kelly criterion: {100*kelly_criterion(portfolio_and_benchmark_df['Strategy_returns']):.2f} % vs {100*kelly_criterion(portfolio_and_benchmark_df['Returns']):.2f} % (buy and hold)"
+    )
+    print(
+        f"Benchmark sensitivity (beta): {portfolio_beta(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns']):.2f} vs 1 (buy and hold)"
+    )
+    print(
+        f"Excess return (alpha): {portfolio_alpha(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns']):.4f} vs 0 (buy and hold)"
+    )
+    print(
+        f"Jensen alpha: {jensen_alpha(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.4f}"
+    )
+    print(
+        f"Tracking error annualized: {100*tracking_error(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %"
+    )
+    print(f"\n{'  Strategy ratios  ':-^50}")
+    print(
+        f"Sharpe ratio annualized: {sharpe_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
+        f"Sortino ratio annualized: {sortino_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
+        f"Treynor ratio annualized: {treynor_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
+        f"Calmar ratio annualized: {calmar_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+    )
+    print(
+        f"Information ratio annualized: {information_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+    )
 
 
 def print_ohlc_backtest_report(
@@ -40,7 +116,7 @@ def print_ohlc_backtest_report(
     good_trades = trades_df.loc[trades_df["trade_return"] > 0]
     bad_trades = trades_df.loc[trades_df["trade_return"] < 0]
     total_trades = len(trades_df)
-    beta, alpha = np.polyfit(ohlcv_df["Returns"], ohlcv_df["Strategy_returns"], 1)
+
     print(f"\n{'  Strategy performances  ':-^50}")
 
     print(
@@ -57,65 +133,7 @@ def print_ohlc_backtest_report(
         f"Strategy expectancy: {100*expectancy(len(good_trades) / total_trades,good_trades['trade_return'].mean(),bad_trades['trade_return'].mean()):.2f} %"
     )
 
-    print(f"\n{'  Returns statistical information  ':-^50}")
-
-    print(
-        f"Expected return annualized: {100*ohlcv_df['Strategy_returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} % vs {100*ohlcv_df['Returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} % (buy and hold)"
-    )
-    print(
-        f'Expected volatility annualized: {100*ohlcv_df["Strategy_returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} % vs {100*ohlcv_df["Returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} % (buy and hold)'
-    )
-    print(
-        f'Specific volatility (diversifiable) annualized: {100*specific_risk(ohlcv_df["Strategy_returns"], ohlcv_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
-    )
-    print(
-        f'Systematic volatility annualized: {100*systematic_risk(ohlcv_df["Strategy_returns"], ohlcv_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
-    )
-    print(
-        f"Skewness: {skew(ohlcv_df['Strategy_returns'].values):.2f} vs {skew(ohlcv_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
-    )
-    print(
-        f"Kurtosis: {kurtosis(ohlcv_df['Strategy_returns'].values):.2f} vs {kurtosis(ohlcv_df.Returns.values):.2f} (buy and hold)",
-        ", >3 = fat tails, <3 = thin tails -> the lower the better",
-    )
-    print(
-        f"{timeframe}-95%-VaR: {100*value_at_risk(ohlcv_df['Strategy_returns']):.2f} % vs {100*value_at_risk(ohlcv_df['Returns']):.2f} % (buy and hold) -> the lower the better"
-    )
-    print(
-        f"{timeframe}-95%-CVaR: {100*conditional_value_at_risk(ohlcv_df['Strategy_returns']):.2f} % vs {100*conditional_value_at_risk(ohlcv_df['Returns']):.2f} % (buy and hold) -> the lower the better"
-    )
-
-    print(f"\n{'  Strategy statistical information  ':-^50}")
-    print(
-        f"Max drawdown: {100*max_drawdown(ohlcv_df['Strategy_returns']):.2f} % vs {100*max_drawdown(ohlcv_df['Returns']):.2f} % (buy and hold)"
-    )
-    print(
-        f"Kelly criterion: {100*kelly_criterion(ohlcv_df['Strategy_returns']):.2f} % vs {100*kelly_criterion(ohlcv_df['Returns']):.2f} % (buy and hold)"
-    )
-    print(f"Benckmark sensivity (beta): {beta:.2f} vs 1 (buy and hold)")
-    print(f"Excess return (alpha): {alpha:.4f} vs 0 (buy and hold)")
-    print(
-        f"Jensen alpha: {jensen_alpha(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.4f}"
-    )
-    print(
-        f"Tracking error annualized: {100*tracking_error(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %"
-    )
-    print(f"\n{'  Strategy ratios  ':-^50}")
-    print(
-        f"Sharpe ratio annualized: {sharpe_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Sortino ratio annualized: {sortino_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Treynor ratio annualized: {treynor_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
-    )
-    print(
-        f"Calmar ratio annualized: {calmar_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
-    )
-    print(
-        f"Information ratio annualized: {information_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
-    )
+    print_portfolio_strategy_report(ohlcv_df, timeframe)
 
     print(f"\n{'  Trades informations  ':-^50}")
     print(f"Mean trade return : {100*trades_df['trade_return'].mean():.2f} %")
