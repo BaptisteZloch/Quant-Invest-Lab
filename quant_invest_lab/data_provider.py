@@ -17,7 +17,9 @@ from quant_invest_lab.types import Timeframe
 def build_multi_crypto_dataframe(
     symbols: set,
     drop_na: bool = False,
-    column_to_keep: str = "Close",
+    column_to_keep: Literal[
+        "Close", "Open", "High", "Low", "Volume", "Amount"
+    ] = "Close",
     timeframe: Timeframe = "1day",
 ) -> pd.DataFrame:
     """Build a multi cryptocurrencies dataframe from a set of symbols. This dataframe will contain the closing price of each symbol or any other column specified in `column_to_keep`. This function is useful to build a dataframe for a multi cryptocurrencies portfolio.
@@ -28,7 +30,7 @@ def build_multi_crypto_dataframe(
 
         drop_na (bool, optional): Whether or not to drop NaNs. Defaults to False.
 
-        column_to_keep (str, optional): The name of the column to keep. Defaults to "Close".
+        column_to_keep (Literal[&quot;Close&quot;,&quot;Open&quot;,&quot;High&quot;,&quot;Low&quot;,&quot;Volume&quot;,&quot;Amount&quot;], optional): The name of the column to keep. Defaults to "Close".
 
         timeframe (Timeframe, optional): The data granularity. Defaults to "1day".
 
@@ -44,10 +46,10 @@ def build_multi_crypto_dataframe(
         currency_df.index = currency_df.index.map(
             lambda x: datetime(x.year, x.month, x.day)
         )
-        if column_to_keep not in currency_df.columns:
-            raise ValueError(
-                f"Column {column_to_keep} not in {symbol} dataframe. Please choose another column."
-            )
+        assert (
+            column_to_keep in currency_df.columns
+        ), f"Column {column_to_keep} not in {symbol} dataframe. Please choose another column."
+
         df = pd.concat(
             [
                 df,
