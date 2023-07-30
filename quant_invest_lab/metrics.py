@@ -5,8 +5,10 @@ import pandas as pd
 import scipy.stats as stat
 from typing import Literal, Union
 
+from statsmodels.tools.tools import add_constant
+from statsmodels.regression.linear_model import OLS
 
-@lru_cache(maxsize=20, typed=True)
+
 def profit_factor(
     avg_win_return: float,
     avg_loss_return: float,
@@ -26,7 +28,6 @@ def profit_factor(
     return abs(avg_win_return / avg_loss_return)
 
 
-@lru_cache(maxsize=20, typed=True)
 def expectancy(
     winrate: float,
     avg_win_return: float,
@@ -93,7 +94,7 @@ def treynor_ratio(
     -----
         float: The annualized treynor ratio.
     """
-    beta, alpha = np.polyfit(benchmark_returns, returns, 1)
+    beta, _ = np.polyfit(benchmark_returns, returns, 1)
     return (returns.mean() * N - risk_free_rate) / float(beta)
 
 
@@ -116,7 +117,7 @@ def sortino_ratio(
     -----
         float: The annualized sortino ratio.
     """
-    return (returns.mean() * N - risk_free_rate) / (downside_risk(returns) * (N**0.5))
+    return (returns.mean() * N - risk_free_rate) / (downside_risk(returns, N))
 
 
 def calmar_ratio(
@@ -138,18 +139,143 @@ def calmar_ratio(
     return (returns.mean() * N) / abs(max_drawdown(returns))
 
 
-def downside_risk(returns: pd.Series) -> float:
+def information_ratio(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    N: Union[int, float] = 365,
+) -> float:
+    """The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark, usually an index, compared to the volatility of those returns. The information ratio (IR) measures a portfolio manager's ability to generate excess returns relative to a benchmark but also attempts to identify the consistency of the investor.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+    Returns:
+    -----
+        float: The annualized information ratio.
+    """
+    return (N * (portfolio_returns - benchmark_returns).mean()) / (
+        tracking_error(portfolio_returns, benchmark_returns, N)
+    )
+
+
+def tracking_error(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    N: Union[int, float] = 365,
+) -> float:
+    """Tracking error is the divergence between the price behavior of a position or a portfolio and the price behavior of a benchmark.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+    Returns:
+    -----
+        float: The annualized tracking error.
+    """
+    return (portfolio_returns - benchmark_returns).std() * N**0.5
+
+
+def downside_risk(
+    returns: pd.Series,
+    N: Union[int, float] = 365,
+) -> float:
     """Downside risk or Semi-Deviation is a method of measuring the fluctuations below the mean, unlike variance or standard deviation it only looks at the negative price fluctuations and it's used to evaluate the downside risk (The risk of loss in an investment) of an investment.
 
     Args:
     -----
         returns (pd.Series): The strategy or portfolio not cumulative returns.
 
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
     Returns:
     ------
         float: The semi-deviation or downside risk of returns.
     """
-    return returns.loc[returns < 0].std()
+    return returns.loc[returns < 0].std() * (N**0.5)
+
+
+def systematic_risk(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    N: Union[int, float] = 365,
+) -> float:
+    """Systematic risk refers to the risk due to general market factors and affects the entire industry. It cannot be diversified away. Here we use only one factor the market beta.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+    Returns:
+    -----
+        float: The annualized systematic risk.
+    """
+    beta, alpha = np.polyfit(benchmark_returns, portfolio_returns, 1)
+    return (
+        beta * benchmark_returns + alpha
+    ).std() * N**0.5  # beta**2*benchmark_returns.std()**2
+
+
+def specific_risk(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    N: Union[int, float] = 365,
+) -> float:
+    """is the risk specific to a company, crypto blockchain, ... that arises due to company-specific characteristics. According to portfolio theory, this risk can be eliminated through diversification.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+    Returns:
+    -----
+        float: The annualized specific risk.
+    """
+    return (
+        OLS(portfolio_returns, add_constant(benchmark_returns)).fit().resid.std()
+        * N**0.5
+    )
+
+
+def jensen_alpha(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    N: Union[int, float] = 365,
+) -> float:
+    """The Jensen index or Jensen's alpha is a risk-adjusted performance benchmark that represents the average return on a portfolio or investment above or below that predicted by the capital asset pricing model (CAPM) given the portfolio's (or investment's) beta and the average market return.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+    Returns:
+    -----
+        float: The annualized Jensen alpha.
+    """
+    return (
+        OLS(portfolio_returns, add_constant(benchmark_returns)).fit().resid.mean() * N
+    )
 
 
 def drawdown(returns: pd.Series) -> pd.Series:
@@ -198,53 +324,21 @@ def max_drawdown(
     return drawdown(returns).min()
 
 
-def information_ratio(
-    portfolio_returns: pd.Series,
-    benchmark_returns: pd.Series,
-    N: Union[int, float] = 365,
-) -> float:
-    """The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark, usually an index, compared to the volatility of those returns. The information ratio (IR) measures a portfolio manager's ability to generate excess returns relative to a benchmark but also attempts to identify the consistency of the investor.
-
-    Args:
-    -----
-        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
-
-        benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
-
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
-
-    Returns:
-    -----
-        float: The annualized information ratio.
-    """
-    return (portfolio_returns - benchmark_returns).mean() / tracking_error(
-        portfolio_returns, benchmark_returns
-    )
-
-
-def tracking_error(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> float:
-    """Tracking error is the divergence between the price behavior of a position or a portfolio and the price behavior of a benchmark.
-
-    Args:
-    -----
-        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
-
-        benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
-
-    Returns:
-    -----
-        float: The annualized tracking error.
-    """
-    return (portfolio_returns - benchmark_returns).std()
-
-
 def kelly_criterion(returns: pd.Series) -> float:
-    p = (returns > 0).mean()
-    q = 1 - p
-    win = returns[returns > 0].mean()
-    loss = returns[returns < 0].mean()
-    r = win / abs(loss)
-    return float((p * r - q) / r)
+    """The Kelly criterion is a mathematical formula relating to the long-term growth of capital developed by John L. Kelly Jr. The formula was developed by Kelly while working at the AT&T Bell Laboratories. The Kelly Criterion is one of the most important concepts in money management and betting. Its simplicity and power are the reasons behind its popularity.
+
+    Args:
+    ----
+        returns (pd.Series): returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+    Returns:
+    -----
+        float: The kelly criterion.
+    """
+    ret = returns[returns != 0]
+    p = (ret > 0).mean()
+    r = ret[ret > 0].mean() / abs(ret[ret < 0].mean())
+    return float((p * r - (1 - p)) / r)
 
 
 def value_at_risk(

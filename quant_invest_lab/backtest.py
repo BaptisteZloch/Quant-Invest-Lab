@@ -18,6 +18,9 @@ from quant_invest_lab.metrics import (
     tracking_error,
     treynor_ratio,
     sortino_ratio,
+    jensen_alpha,
+    systematic_risk,
+    specific_risk,
     max_drawdown,
     drawdown,
     kelly_criterion,
@@ -57,13 +60,16 @@ def print_ohlc_backtest_report(
     print(f"\n{'  Returns statistical information  ':-^50}")
 
     print(
-        f"Expected return : {100*ohlcv_df['Strategy_returns'].mean():.2f} %, annuzalized: {100*ohlcv_df['Strategy_returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
+        f"Expected return annualized: {100*ohlcv_df['Strategy_returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} % vs {100*ohlcv_df['Returns'].mean()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} % (buy and hold)"
     )
     print(
-        f"Median return : {100*ohlcv_df['Strategy_returns'].median():.2f} %, annuzalized: {100*ohlcv_df['Strategy_returns'].median()*TIMEFRAME_ANNUALIZED[timeframe]:.2f} %"
+        f'Expected volatility annualized: {100*ohlcv_df["Strategy_returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} % vs {100*ohlcv_df["Returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} % (buy and hold)'
     )
     print(
-        f'Expected volatility: {100*ohlcv_df["Strategy_returns"].std():.2f} %, annualized: {100*ohlcv_df["Strategy_returns"].std()*(TIMEFRAME_ANNUALIZED[timeframe]**0.5):.2f} %'
+        f'Specific volatility (diversifiable) annualized: {100*specific_risk(ohlcv_df["Strategy_returns"], ohlcv_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
+    )
+    print(
+        f'Systematic volatility annualized: {100*systematic_risk(ohlcv_df["Strategy_returns"], ohlcv_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
     )
     print(
         f"Skewness: {skew(ohlcv_df['Strategy_returns'].values):.2f} vs {skew(ohlcv_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
@@ -89,22 +95,26 @@ def print_ohlc_backtest_report(
     print(f"Benckmark sensivity (beta): {beta:.2f} vs 1 (buy and hold)")
     print(f"Excess return (alpha): {alpha:.4f} vs 0 (buy and hold)")
     print(
-        f"Tracking error: {100*tracking_error(ohlcv_df['Strategy_returns'], ohlcv_df['Returns']):.2f} %"
+        f"Jensen alpha: {jensen_alpha(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.4f}"
     )
     print(
-        f"Sharpe ratio (annualized): {sharpe_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Tracking error annualized: {100*tracking_error(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %"
+    )
+    print(f"\n{'  Strategy ratios  ':-^50}")
+    print(
+        f"Sharpe ratio annualized: {sharpe_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Sortino ratio (annualized): {sortino_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sortino ratio annualized: {sortino_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Treynor ratio (annualized): {treynor_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Treynor ratio annualized: {treynor_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*ohlcv_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
-        f"Calmar ratio (annualized): {calmar_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+        f"Calmar ratio annualized: {calmar_ratio(ohlcv_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
     )
     print(
-        f"Information ratio (annualized): {information_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+        f"Information ratio annualized: {information_ratio(ohlcv_df['Strategy_returns'], ohlcv_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
     )
 
     print(f"\n{'  Trades informations  ':-^50}")
