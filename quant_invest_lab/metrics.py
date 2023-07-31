@@ -7,6 +7,7 @@ from typing import Literal, Union
 
 from statsmodels.tools.tools import add_constant
 from statsmodels.regression.linear_model import OLS
+from sklearn.metrics import r2_score
 
 
 def profit_factor(
@@ -242,6 +243,26 @@ def portfolio_alpha(
     """
     _, alpha = np.polyfit(benchmark_returns, portfolio_returns, 1)
     return alpha
+
+
+def r_squared(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+) -> float:
+    """R-squared is a statistical measure that represents the proportion of the variance for a dependent variable that's explained by an independent variable or variables in a regression model.
+
+    Args:
+    -----
+        portfolio_returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
+
+    Returns:
+    -----
+        float: The r-squared or coefficient of determination.
+    """
+    beta, alpha = np.polyfit(benchmark_returns, portfolio_returns, 1)
+    return r2_score(portfolio_returns, beta * benchmark_returns + alpha)  # type: ignore
 
 
 def systematic_risk(

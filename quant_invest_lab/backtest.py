@@ -19,6 +19,7 @@ from quant_invest_lab.metrics import (
     treynor_ratio,
     sortino_ratio,
     jensen_alpha,
+    r_squared,
     systematic_risk,
     specific_risk,
     portfolio_beta,
@@ -37,10 +38,12 @@ def print_portfolio_strategy_report(
     portfolio_and_benchmark_df: pd.DataFrame, timeframe: Timeframe
 ) -> None:
     assert timeframe in TIMEFRAMES, f"Timeframe {timeframe} not supported"
-    assert set(portfolio_and_benchmark_df.columns.tolist()).issuperset({
-        "Strategy_returns",
-        "Returns",
-    }), f"Missing Strategy_returns and Returns columns in dataframe: {portfolio_and_benchmark_df.columns}"
+    assert set(portfolio_and_benchmark_df.columns.tolist()).issuperset(
+        {
+            "Strategy_returns",
+            "Returns",
+        }
+    ), f"Missing Strategy_returns and Returns columns in dataframe: {portfolio_and_benchmark_df.columns}"
 
     print(f"\n{'  Returns statistical information  ':-^50}")
 
@@ -85,6 +88,9 @@ def print_portfolio_strategy_report(
     )
     print(
         f"Jensen alpha: {jensen_alpha(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.4f}"
+    )
+    print(
+        f"Determination coefficient R²: {r_squared(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns']):.2f}"
     )
     print(
         f"Tracking error annualized: {100*tracking_error(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %"
