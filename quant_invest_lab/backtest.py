@@ -644,7 +644,7 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
             "Return distribution",
             "Equity progression",
             "Expected return profile",
-            "Drawdown Evolution",
+            "Drawdown evolution",
             "Return per decile",
         ),
         shared_xaxes=False,
