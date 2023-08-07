@@ -9,12 +9,14 @@ from plotly.subplots import make_subplots
 from tqdm import tqdm
 
 from quant_invest_lab.metrics import (
+    burke_ratio,
     cumulative_returns,
     expectancy,
     profit_factor,
     sharpe_ratio,
     calmar_ratio,
     information_ratio,
+    tail_ratio,
     tracking_error,
     treynor_ratio,
     sortino_ratio,
@@ -106,10 +108,16 @@ def print_portfolio_strategy_report(
         f"Treynor ratio annualized: {treynor_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
     )
     print(
+        f"Burke ratio annualized: {burke_ratio(portfolio_and_benchmark_df['Strategy_returns'],n_drawdowns=5, risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+    )
+    print(
         f"Calmar ratio annualized: {calmar_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
     )
     print(
         f"Information ratio annualized: {information_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+    )
+    print(
+        f"Tail ratio annualized: {tail_ratio(portfolio_and_benchmark_df['Strategy_returns']):.2f}"
     )
 
 

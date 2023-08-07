@@ -73,6 +73,47 @@ def sharpe_ratio(
     return (returns.mean() * N - risk_free_rate) / (returns.std() * (N**0.5))
 
 
+def tail_ratio(returns: pd.Series, percentile: int = 5) -> float:
+    """The tail ratio is the ratio between the right tail and the left tail of the returns distribution. It is a measure of the asymmetry of the returns distribution.
+
+    Args:
+        returns (pd.Series): _description_
+        percentile (int, optional): The percentile to use for the tail must be in ]0, 100[. Defaults to 5.
+
+    Returns:
+        float: The tail ratio.
+    """
+    assert percentile > 0 and percentile < 100
+    return abs(returns.quantile(1 - (5 / 100)) / returns.quantile(5 / 100))
+
+
+def burke_ratio(
+    returns: pd.Series,
+    n_drawdowns: int = 10,
+    N: Union[int, float] = 365,
+    risk_free_rate: float = 0.0,
+) -> float:
+    """The burke ratio is a risk-adjusted measure of return based on drawdowns. It is similar to the Sharpe ratio, except it uses the worst drawdowns as the measurement of volatility instead of standard deviation. If n_drawdowns is 1, then we have the Sortino ratio. Details here : https://breakingdownfinance.com/finance-topics/performance-measurement/burke-ratio
+
+    Args:
+        returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        n_drawdowns (int, optional): The number of drawdown to use as denominator, 0 < n_drawdowns <= 25. Defaults to 10.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+        risk_free_rate (float, optional): The risk free rate usually 10-year bond, buy-and-hold or 0. Defaults to 0.0.
+
+    Returns:
+        float: The annualized burke ratio.
+    """
+    assert 0 < n_drawdowns <= 25, "Error provide maximum 25 n_drawdowns."
+    n_mdd = drawdown(returns).nsmallest(n_drawdowns)
+    return ((returns.mean() * N) - risk_free_rate) / (
+        ((n_mdd / n_drawdowns) ** 2).sum()
+    ) ** 0.5
+
+
 def treynor_ratio(
     returns: pd.Series,
     benchmark_returns: pd.Series,
