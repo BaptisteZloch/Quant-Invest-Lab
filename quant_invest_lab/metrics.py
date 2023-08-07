@@ -162,6 +162,32 @@ def sortino_ratio(
     return (returns.mean() * N - risk_free_rate) / (downside_risk(returns, N))
 
 
+def omega_ratio(
+    returns: pd.Series,
+    annual_return_threshold: float = 0.05,
+    N: Union[int, float] = 365,
+) -> float:
+    """https://medium.com/@harishangaran/omega-performance-measure-using-python-a91752bea386
+
+    Args:
+    ----
+        returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        annual_return_threshold (float): The annual return threshold. Defaults to 0.05.
+
+        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+
+    Returns:
+    -----
+        float: The annualized omega ratio.
+    """
+    daily_return_threshold = (annual_return_threshold + 1) ** ((1 / 252) ** 0.5) - 1
+    excess_returns = returns - daily_return_threshold
+    return excess_returns[excess_returns > 0].sum() / (
+        -excess_returns[excess_returns < 0].sum()
+    )
+
+
 def calmar_ratio(
     returns: pd.Series,
     N: Union[int, float] = 365,

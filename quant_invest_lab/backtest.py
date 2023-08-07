@@ -62,11 +62,11 @@ def print_portfolio_strategy_report(
         f'Systematic volatility annualized: {100*systematic_risk(portfolio_and_benchmark_df["Strategy_returns"], portfolio_and_benchmark_df["Returns"], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %'
     )
     print(
-        f"Skewness: {skew(portfolio_and_benchmark_df['Strategy_returns'].values):.2f} vs {skew(portfolio_and_benchmark_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail -> the higher the better"
+        f"Skewness: {skew(portfolio_and_benchmark_df['Strategy_returns'].values):.2f} vs {skew(portfolio_and_benchmark_df.Returns.values):.2f} (buy and hold), <0 = left tail, >0 = right tail"
     )
     print(
         f"Kurtosis: {kurtosis(portfolio_and_benchmark_df['Strategy_returns'].values):.2f} vs {kurtosis(portfolio_and_benchmark_df.Returns.values):.2f} (buy and hold)",
-        ", >3 = fat tails, <3 = thin tails -> the lower the better",
+        ", >3 = fat tails, <3 = thin tails",
     )
     print(
         f"{timeframe}-95%-VaR: {100*value_at_risk(portfolio_and_benchmark_df['Strategy_returns']):.2f} % vs {100*value_at_risk(portfolio_and_benchmark_df['Returns']):.2f} % (buy and hold) -> the lower the better"
@@ -98,26 +98,27 @@ def print_portfolio_strategy_report(
         f"Tracking error annualized: {100*tracking_error(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} %"
     )
     print(f"\n{'  Strategy ratios  ':-^50}")
+    print("No risk free rate considered for the following ratios.\n")
     print(
-        f"Sharpe ratio annualized: {sharpe_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sharpe ratio annualized: {sharpe_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0.0):.2f} vs {sharpe_ratio(portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0.0):.2f} (buy and hold)"
     )
     print(
-        f"Sortino ratio annualized: {sortino_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Sortino ratio annualized: {sortino_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f} vs {sortino_ratio(portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f} (buy and hold)"
     )
     print(
-        f"Treynor ratio annualized: {treynor_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Burke ratio annualized: {burke_ratio(portfolio_and_benchmark_df['Strategy_returns'],n_drawdowns=5, risk_free_rate=0):.2f} vs {burke_ratio(portfolio_and_benchmark_df['Returns'],n_drawdowns=5, risk_free_rate=0):.2f} (buy and hold)"
     )
     print(
-        f"Burke ratio annualized: {burke_ratio(portfolio_and_benchmark_df['Strategy_returns'],n_drawdowns=5, risk_free_rate=TIMEFRAME_ANNUALIZED[timeframe]*portfolio_and_benchmark_df.Returns.mean()):.2f} (risk free rate = buy and hold)"
+        f"Calmar ratio annualized: {calmar_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} vs {calmar_ratio(portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} (buy and hold)"
     )
     print(
-        f"Calmar ratio annualized: {calmar_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
+        f"Tail ratio annualized: {tail_ratio(portfolio_and_benchmark_df['Strategy_returns']):.2f} vs {tail_ratio(portfolio_and_benchmark_df['Returns']):.2f} (buy and hold)"
+    )
+    print(
+        f"Treynor ratio annualized: {treynor_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f}"
     )
     print(
         f"Information ratio annualized: {information_ratio(portfolio_and_benchmark_df['Strategy_returns'], portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f}"
-    )
-    print(
-        f"Tail ratio annualized: {tail_ratio(portfolio_and_benchmark_df['Strategy_returns']):.2f}"
     )
 
 
