@@ -12,6 +12,7 @@ from quant_invest_lab.metrics import (
     burke_ratio,
     cumulative_returns,
     expectancy,
+    omega_ratio,
     profit_factor,
     sharpe_ratio,
     calmar_ratio,
@@ -103,10 +104,10 @@ def print_portfolio_strategy_report(
         f"Sharpe ratio annualized: {sharpe_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0.0):.2f} vs {sharpe_ratio(portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0.0):.2f} (buy and hold)"
     )
     print(
-        f"Sortino ratio annualized: {sortino_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f} vs {sortino_ratio(portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f} (buy and hold)"
+        f"Sortino ratio annualized: {sortino_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f} vs {sortino_ratio(portfolio_and_benchmark_df['Returns'], N=TIMEFRAME_ANNUALIZED[timeframe],risk_free_rate=0):.2f} (buy and hold)"
     )
     print(
-        f"Burke ratio annualized: {burke_ratio(portfolio_and_benchmark_df['Strategy_returns'],n_drawdowns=5, risk_free_rate=0):.2f} vs {burke_ratio(portfolio_and_benchmark_df['Returns'],n_drawdowns=5, risk_free_rate=0):.2f} (buy and hold)"
+        f"Burke ratio annualized: {burke_ratio(portfolio_and_benchmark_df['Strategy_returns'],n_drawdowns=5, risk_free_rate=0, N=TIMEFRAME_ANNUALIZED[timeframe]):.2f} vs {burke_ratio(portfolio_and_benchmark_df['Returns'],n_drawdowns=5, risk_free_rate=0, N=TIMEFRAME_ANNUALIZED[timeframe]):.2f} (buy and hold)"
     )
     print(
         f"Calmar ratio annualized: {calmar_ratio(portfolio_and_benchmark_df['Strategy_returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} vs {calmar_ratio(portfolio_and_benchmark_df['Returns'], TIMEFRAME_ANNUALIZED[timeframe]):.2f} (buy and hold)"
@@ -645,8 +646,9 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
         price_df (pd.DataFrame): The historical price dataframe.
 
     """
+    n_rolling = price_df["Strategy_returns"].shape[0] // 10
     fig = make_subplots(
-        rows=3,
+        rows=4,
         cols=2,
         subplot_titles=(
             "Historical price",
@@ -655,6 +657,8 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
             "Expected return profile",
             "Drawdown evolution",
             "Return per decile",
+            f"{n_rolling} candles rolling Sharpe ratio",
+            "Omega curve",
         ),
         shared_xaxes=False,
     )
@@ -843,6 +847,89 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
     fig.update_xaxes(title_text="Deciles", row=3, col=2)
     fig.update_yaxes(title_text="Returns", row=3, col=2)
 
+    thresholds = np.linspace(0.01, 0.5, 100)
+    omega_bench = []
+    omega_ptf = []
+    for threshold in thresholds:
+        omega_ptf.append(omega_ratio(price_df["Strategy_returns"], threshold))
+        omega_bench.append(omega_ratio(price_df["Returns"], threshold))
+
+    fig.add_trace(
+        go.Scatter(
+            name="Strategy omega curve",
+            legendgroup="2",
+            x=thresholds,
+            y=omega_ptf,
+            line={"color": "salmon"},
+        ),
+        row=4,
+        col=2,
+    )
+    fig.add_trace(
+        go.Scatter(
+            name="Benchmark omega curve",
+            legendgroup="2",
+            x=thresholds,
+            y=omega_bench,
+            line={"color": "violet"},
+        ),
+        row=4,
+        col=2,
+    )
+    fig.update_yaxes(
+        title_text="Omega ratio",
+        row=4,
+        col=2,
+    )
+    fig.update_xaxes(
+        title_text="Annual return thresholds",
+        row=4,
+        col=2,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            name="Strategy sharpe ratio",
+            legendgroup="4",
+            x=price_df.index,
+            y=price_df["Strategy_returns"]
+            .rolling(n_rolling)
+            .apply(
+                lambda rets: (365 * rets.mean()) / (rets.std() * (365**0.5)),
+            )
+            .fillna(0),
+            line={"color": "salmon"},
+        ),
+        row=4,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            name="Buy and Hold sharpe ratio",
+            legendgroup="4",
+            x=price_df.index,
+            y=price_df["Returns"]
+            .rolling(n_rolling)
+            .apply(
+                lambda rets: (365 * rets.mean()) / (rets.std() * (365**0.5)),
+            )
+            .fillna(0),
+            line={"color": "violet"},
+        ),
+        row=4,
+        col=1,
+    )
+    fig.update_yaxes(
+        title_text="Rolling sharpe ratio",
+        row=4,
+        col=1,
+    )
+    fig.update_xaxes(
+        title_text="Datetime",
+        row=4,
+        col=1,
+    )
+
     fig.update_layout(
         legend=dict(
             orientation="v",  # Set the orientation of the legends to horizontal
@@ -855,7 +942,7 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
         xaxis_rangeslider_visible=False,
         showlegend=True,
         title_text="Historical price, strategy equity evolution/drawdown and returns distribution",
-        height=1000,
+        height=1100,
     )
 
     fig.show()
