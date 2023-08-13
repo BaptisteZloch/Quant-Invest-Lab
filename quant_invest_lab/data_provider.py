@@ -120,7 +120,7 @@ class CryptoService:
             Args:
                 start_timestamp (str): The initial timestamp.
                 end_timestamp (str): The final timestamp.
-                timeframe (Timeframe): The desired timeframe, sould be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day...
+                timeframe (Timeframe): The desired timeframe, sould be 1min, 3min, 5min, 15min, 1hour, 4hour, 1day...
                 exchange_limit (int, optional): The exchange limit : 1500 for Kucoin here.. Defaults to 1500.
             Returns:
                 list[int]: The list of timestamps.
@@ -172,7 +172,7 @@ class CryptoService:
                 symbol (str): The symbol for the data we want to extract. Defaults to "BTC-USDT".
                 start_at (int): The starting timestamp and. Note that this function could only outputs 1500 records. If the timeframe and the timestamps don't satisfy it, it will return a dataframe with 1500 records from the starting timestamp.
                 end_at (int): The ending timestamp.
-                timeframe (Timeframe, optional): The timeframe, it must be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
+                timeframe (Timeframe, optional): The timeframe, it must be 1min, 3min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
             Returns:
                 Optional[pd.DataFrame]: The dataframe containing historical records.
             """
@@ -213,7 +213,7 @@ class CryptoService:
             Args:
                 symbol (str): The symbol for the data we want to extract. Defaults to "BTC-USDT".
                 since (str): The initial date in format : dd-mm-yyyy.
-                timeframe (Timeframe): The timeframe, it must be 1min, 2min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
+                timeframe (Timeframe): The timeframe, it must be 1min, 3min, 5min, 15min, 1hour, 4hour, 1day... Defaults to '15min'.
                 jobs (int, optional): The number of thread to parallelize the code. Defaults to -1.
             Raises:
                 ValueError: Error in using parallelism.

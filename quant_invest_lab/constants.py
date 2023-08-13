@@ -2,7 +2,7 @@ from quant_invest_lab.types import Timeframe
 
 TIMEFRAME_ANNUALIZED = {
     "1min": int(365 * 24 / 1 * 60),
-    "2min": int(365 * 24 / 1 * 30),
+    "3min": int(365 * 24 / 1 * 30),
     "5min": int(365 * 24 / 1 * 12),
     "15min": int(365 * 24 / 1 * 4),
     "30min": int(365 * 24 / 1 * 2),
@@ -15,7 +15,7 @@ TIMEFRAME_ANNUALIZED = {
 
 TIMEFRAME_TO_FREQ = {
     "1min": "1T",
-    "2min": "2T",
+    "3min": "2T",
     "5min": "5T",
     "15min": "15T",
     "30min": "30T",
@@ -28,7 +28,7 @@ TIMEFRAME_TO_FREQ = {
 
 TIMEFRAMES: tuple = (
     "1min",
-    "2min",
+    "3min",
     "5min",
     "15min",
     "30min",
@@ -41,7 +41,7 @@ TIMEFRAMES: tuple = (
 
 TIMEFRAME_IN_S = {
     "1min": 60,
-    "2min": 60 * 2,
+    "3min": 60 * 2,
     "5min": 60 * 5,
     "15min": 60 * 15,
     "30min": 60 * 15,

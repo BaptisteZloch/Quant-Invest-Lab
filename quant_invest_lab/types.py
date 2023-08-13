@@ -2,7 +2,7 @@ from typing import Literal
 
 Timeframe = Literal[
     "1min",
-    "2min",
+    "3min",
     "5min",
     "15min",
     "30min",
