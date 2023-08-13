@@ -43,9 +43,9 @@ def build_multi_crypto_dataframe(
         currency_df = download_crypto_historical_data(
             symbol, timeframe, compute_return=False, refresh_list_of_symbol=False
         )
-        currency_df.index = currency_df.index.map(
-            lambda x: datetime(x.year, x.month, x.day)
-        )
+        # currency_df.index = currency_df.index.map(
+        #     lambda x: datetime(x.year, x.month, x.day)
+        # )
         assert (
             column_to_keep in currency_df.columns
         ), f"Column {column_to_keep} not in {symbol} dataframe. Please choose another column."
