@@ -1,5 +1,5 @@
 from scipy.stats import skew, kurtosis
-from typing import Callable, Literal, Optional, Union, Tuple
+from typing import Optional, Union
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -7,7 +7,6 @@ import plotly.figure_factory as ff
 from plotly.subplots import make_subplots
 from quant_invest_lab.metrics import (
     burke_ratio,
-    cumulative_returns,
     expectancy,
     omega_ratio,
     profit_factor,
@@ -25,7 +24,6 @@ from quant_invest_lab.metrics import (
     portfolio_beta,
     portfolio_alpha,
     max_drawdown,
-    drawdown,
     kelly_criterion,
     value_at_risk,
     conditional_value_at_risk,
@@ -34,25 +32,51 @@ from quant_invest_lab.constants import TIMEFRAME_ANNUALIZED, TIMEFRAMES
 from quant_invest_lab.types import Timeframe
 
 
-def print_portfolio_strategy_report(
+def construct_report_dataframe(
     portfolio_returns: pd.Series,
     benchmark_returns: Optional[pd.Series] = None,
     timeframe: Timeframe = "1hour",
 ) -> pd.DataFrame:
-    assert timeframe in TIMEFRAMES, f"Timeframe {timeframe} not supported"
+    report_df = pd.DataFrame(
+        columns=["Portfolio"]
+        if benchmark_returns is not None
+        else ["Portfolio", "Benchmark"]
+    )
+
+    report_df.loc["Expected return", "Portfolio"] = (
+        portfolio_returns.mean() * TIMEFRAME_ANNUALIZED[timeframe]
+    )
+    report_df.loc["Expected volatility", "Portfolio"] = portfolio_returns.std() * (
+        TIMEFRAME_ANNUALIZED[timeframe] ** 0.5
+    )
+    report_df.loc["Skewness", "Portfolio"] = skew(portfolio_returns.values)
+    report_df.loc["Kurtosis", "Portfolio"] = kurtosis(portfolio_returns.values)
+    report_df.loc["VaR", "Portfolio"] = value_at_risk(portfolio_returns)
+    report_df.loc["CVaR", "Portfolio"] = conditional_value_at_risk(portfolio_returns)
+    report_df.loc["Max drawdown", "Portfolio"] = max_drawdown(portfolio_returns)
+    report_df.loc["Kelly criterion", "Portfolio"] = kelly_criterion(portfolio_returns)
+    report_df.loc["Sharpe ratio", "Portfolio"] = sharpe_ratio(
+        portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0.0
+    )
+    report_df.loc["Sortino ratio", "Portfolio"] = sortino_ratio(
+        portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0
+    )
+    report_df.loc["Burke ratio", "Portfolio"] = burke_ratio(
+        portfolio_returns,
+        n_drawdowns=5,
+        risk_free_rate=0,
+        N=TIMEFRAME_ANNUALIZED[timeframe],
+    )
+    report_df.loc["Calmar ratio", "Portfolio"] = calmar_ratio(
+        portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe]
+    )
+    report_df.loc["Tail ratio", "Portfolio"] = tail_ratio(portfolio_returns)
 
     if benchmark_returns is not None:
-        report_df = pd.DataFrame(columns=["Portfolio", "Benchmark"])
         assert (
             portfolio_returns.shape[0] == benchmark_returns.shape[0]
         ), f"Error: portfolio and benchmark returns must have the same length"
-        report_df = pd.DataFrame(columns=["Portfolio", "Benchmark"])
-        report_df.loc["Expected return", "Portfolio"] = (
-            portfolio_returns.mean() * TIMEFRAME_ANNUALIZED[timeframe]
-        )
-        report_df.loc["Expected volatility", "Portfolio"] = portfolio_returns.std() * (
-            TIMEFRAME_ANNUALIZED[timeframe] ** 0.5
-        )
+
         report_df.loc["Specific risk", "Portfolio"] = specific_risk(
             portfolio_returns, benchmark_returns, TIMEFRAME_ANNUALIZED[timeframe]
         )
@@ -68,39 +92,13 @@ def print_portfolio_strategy_report(
         report_df.loc["Jensen alpha", "Portfolio"] = jensen_alpha(
             portfolio_returns, benchmark_returns, TIMEFRAME_ANNUALIZED[timeframe]
         )
-        report_df.loc["Skewness", "Portfolio"] = skew(portfolio_returns.values)
-        report_df.loc["Kurtosis", "Portfolio"] = kurtosis(portfolio_returns.values)
-        report_df.loc["VaR", "Portfolio"] = value_at_risk(portfolio_returns)
-        report_df.loc["CVaR", "Portfolio"] = conditional_value_at_risk(
-            portfolio_returns
-        )
-        report_df.loc["Max drawdown", "Portfolio"] = max_drawdown(portfolio_returns)
-        report_df.loc["Kelly criterion", "Portfolio"] = kelly_criterion(
-            portfolio_returns
-        )
+
         report_df.loc["R2", "Portfolio"] = r_squared(
             portfolio_returns, benchmark_returns
         )
         report_df.loc["Tracking error", "Portfolio"] = tracking_error(
             portfolio_returns, benchmark_returns, TIMEFRAME_ANNUALIZED[timeframe]
         )
-
-        report_df.loc["Sharpe ratio", "Portfolio"] = sharpe_ratio(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0.0
-        )
-        report_df.loc["Sortino ratio", "Portfolio"] = sortino_ratio(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0
-        )
-        report_df.loc["Burke ratio", "Portfolio"] = burke_ratio(
-            portfolio_returns,
-            n_drawdowns=5,
-            risk_free_rate=0,
-            N=TIMEFRAME_ANNUALIZED[timeframe],
-        )
-        report_df.loc["Calmar ratio", "Portfolio"] = calmar_ratio(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe]
-        )
-        report_df.loc["Tail ratio", "Portfolio"] = tail_ratio(portfolio_returns)
 
         report_df.loc["Treynor ratio", "Portfolio"] = treynor_ratio(
             portfolio_returns,
@@ -157,7 +155,19 @@ def print_portfolio_strategy_report(
 
         report_df.loc["Treynor ratio", "Benchmark"] = 0
         report_df.loc["Information ratio", "Benchmark"] = 0
+    return report_df
 
+
+def print_portfolio_strategy_report(
+    portfolio_returns: pd.Series,
+    benchmark_returns: Optional[pd.Series] = None,
+    timeframe: Timeframe = "1hour",
+) -> pd.DataFrame:
+    assert timeframe in TIMEFRAMES, f"Timeframe {timeframe} not supported"
+    report_df = construct_report_dataframe(
+        portfolio_returns, benchmark_returns, timeframe
+    )
+    if benchmark_returns is not None:
         print(f"\n{'  Returns statistical information  ':-^50}")
 
         print(
@@ -228,40 +238,6 @@ def print_portfolio_strategy_report(
             f"Information ratio annualized: {report_df.loc['Information ratio', 'Portfolio']:.2f}"
         )
     else:
-        report_df = pd.DataFrame(columns=["Portfolio"])
-        report_df.loc["Expected return annualized", "Portfolio"] = (
-            portfolio_returns.mean() * TIMEFRAME_ANNUALIZED[timeframe]
-        )
-        report_df.loc[
-            "Expected volatility annualized", "Portfolio"
-        ] = portfolio_returns.std() * (TIMEFRAME_ANNUALIZED[timeframe] ** 0.5)
-        report_df.loc["Skewness", "Portfolio"] = skew(portfolio_returns.values)
-        report_df.loc["Kurtosis", "Portfolio"] = kurtosis(portfolio_returns.values)
-        report_df.loc["VaR", "Portfolio"] = value_at_risk(portfolio_returns)
-        report_df.loc["CVaR", "Portfolio"] = conditional_value_at_risk(
-            portfolio_returns
-        )
-        report_df.loc["Max drawdown", "Portfolio"] = max_drawdown(portfolio_returns)
-        report_df.loc["Kelly criterion", "Portfolio"] = kelly_criterion(
-            portfolio_returns
-        )
-        report_df.loc["Sharpe ratio", "Portfolio"] = sharpe_ratio(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0.0
-        )
-        report_df.loc["Sortino ratio", "Portfolio"] = sortino_ratio(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0
-        )
-        report_df.loc["Burke ratio", "Portfolio"] = burke_ratio(
-            portfolio_returns,
-            n_drawdowns=5,
-            risk_free_rate=0,
-            N=TIMEFRAME_ANNUALIZED[timeframe],
-        )
-        report_df.loc["Calmar ratio", "Portfolio"] = calmar_ratio(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe]
-        )
-        report_df.loc["Tail ratio", "Portfolio"] = tail_ratio(portfolio_returns)
-
         print(f"\n{'  Returns statistical information  ':-^50}")
 
         print(

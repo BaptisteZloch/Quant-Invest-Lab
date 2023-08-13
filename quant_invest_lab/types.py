@@ -12,3 +12,28 @@ Timeframe = Literal[
     "12hour",
     "1day",
 ]
+
+PortfolioMetric = Literal[
+    "Expected return",
+    "Expected volatility",
+    "Skewness",
+    "Kurtosis",
+    "VaR",
+    "CVaR",
+    "Max drawdown",
+    "Kelly criterion",
+    "Sharpe ratio",
+    "Sortino ratio",
+    "Burke ratio",
+    "Calmar ratio",
+    "Tail ratio",
+    "Specific risk",
+    "Systematic risk",
+    "Portfolio beta",
+    "Portfolio alpha",
+    "Jensen alpha",
+    "R2",
+    "Tracking error",
+    "Treynor ratio",
+    "Information ratio",
+]

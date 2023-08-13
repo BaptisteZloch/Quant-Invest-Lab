@@ -51,3 +51,28 @@ TIMEFRAME_IN_S = {
     "12hour": 12 * 60**2,
     "1day": 24 * 60**2,
 }
+
+PORTFOLIO_METRICS = [
+    "Expected return",
+    "Expected volatility",
+    "Skewness",
+    "Kurtosis",
+    "VaR",
+    "CVaR",
+    "Max drawdown",
+    "Kelly criterion",
+    "Sharpe ratio",
+    "Sortino ratio",
+    "Burke ratio",
+    "Calmar ratio",
+    "Tail ratio",
+    "Specific risk",
+    "Systematic risk",
+    "Portfolio beta",
+    "Portfolio alpha",
+    "Jensen alpha",
+    "R2",
+    "Tracking error",
+    "Treynor ratio",
+    "Information ratio",
+]
