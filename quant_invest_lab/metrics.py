@@ -84,7 +84,10 @@ def tail_ratio(returns: pd.Series, percentile: int = 5) -> float:
         float: The tail ratio.
     """
     assert percentile > 0 and percentile < 100
-    return abs(returns.quantile(1 - (5 / 100)) / returns.quantile(5 / 100))
+    return abs(
+        returns[returns >= returns.quantile(1 - (5 / 100))].mean()
+        / returns[returns <= returns.quantile(5 / 100)].mean()
+    )
 
 
 def burke_ratio(
@@ -93,7 +96,7 @@ def burke_ratio(
     N: Union[int, float] = 365,
     risk_free_rate: float = 0.0,
 ) -> float:
-    """The burke ratio is a risk-adjusted measure of return based on drawdowns. It is similar to the Sharpe ratio, except it uses the worst drawdowns as the measurement of volatility instead of standard deviation. If n_drawdowns is 1, then we have the Sortino ratio. Details here : https://breakingdownfinance.com/finance-topics/performance-measurement/burke-ratio
+    """The burke ratio is a risk-adjusted measure of return based on drawdowns. It is similar to the Sharpe ratio, except it uses the worst drawdowns as the measurement of volatility instead of standard deviation. If n_drawdowns is 1, then we have the Calmar ratio. Details here : https://breakingdownfinance.com/finance-topics/performance-measurement/burke-ratio
 
     Args:
         returns (pd.Series): The strategy or portfolio not cumulative returns.
@@ -167,7 +170,7 @@ def omega_ratio(
     annual_return_threshold: float = 0.05,
     N: Union[int, float] = 365,
 ) -> float:
-    """https://medium.com/@harishangaran/omega-performance-measure-using-python-a91752bea386
+    """Given an annual return target (e.g. 5%), the Omega ratio is the probability that the strategy will return more than the target. The higher the Omega ratio, the better the strategy.
 
     Args:
     ----
@@ -181,10 +184,12 @@ def omega_ratio(
     -----
         float: The annualized omega ratio.
     """
-    daily_return_threshold = (annual_return_threshold + 1) ** ((1 / 252) ** 0.5) - 1
+    daily_return_threshold = float(
+        (annual_return_threshold + 1) ** ((1 / N) ** 0.5) - 1
+    )
     excess_returns = returns - daily_return_threshold
     return excess_returns[excess_returns > 0].sum() / (
-        -excess_returns[excess_returns < 0].sum()
+        abs(excess_returns[excess_returns < 0].sum())
     )
 
 
