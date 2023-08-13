@@ -18,7 +18,7 @@ class ABCPortfolio(ABC):
         Args:
         -----
             returns (pd.DataFrame): The returns of the assets in the portfolio.
-            trading_days (int, optional): The number of trading days in a year, 365 for cryptos, 252 for stocks. Defaults to 365.
+            trading_days (int, optional): Given the timeframe of the returns the number of period in year. Example for daily returns:  365 for cryptos, 252 for stocks and for hourly return 365*24 for cryptos, 252*24 for stock. Defaults to 365.
         """
         self._returns = returns
         self._returns_mean = self._returns.mean()
@@ -93,7 +93,7 @@ class ABCPortfolio(ABC):
         -----
             dict[str, float | int]: The Sharpe ratio, the risk and the return of the portfolio. The keys are : "sharpe", "risk" and "return".
         """
-        ret = np.sum(self._returns_mean * weights * self._trading_days)
+        ret = float(np.sum(self._returns_mean * weights * self._trading_days))
         vol = float(
             np.sqrt(weights.T @ self._returns_cov * self._trading_days @ weights)
         )
