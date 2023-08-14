@@ -8,8 +8,9 @@ from plotly.subplots import make_subplots
 from quant_invest_lab.metrics import (
     burke_ratio,
     expectancy,
-    omega_ratio,
     profit_factor,
+    omega_ratio,
+    payoff_ratio,
     sharpe_ratio,
     calmar_ratio,
     information_ratio,
@@ -55,6 +56,9 @@ def construct_report_dataframe(
     report_df.loc["CVaR", "Portfolio"] = conditional_value_at_risk(portfolio_returns)
     report_df.loc["Max drawdown", "Portfolio"] = max_drawdown(portfolio_returns)
     report_df.loc["Kelly criterion", "Portfolio"] = kelly_criterion(portfolio_returns)
+    report_df.loc["Profit factor", "Portfolio"] = profit_factor(portfolio_returns)
+    report_df.loc["Payoff ratio", "Portfolio"] = payoff_ratio(portfolio_returns)
+    report_df.loc["Expectancy", "Portfolio"] = expectancy(portfolio_returns)
     report_df.loc["Sharpe ratio", "Portfolio"] = sharpe_ratio(
         portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe], risk_free_rate=0.0
     )
@@ -129,6 +133,9 @@ def construct_report_dataframe(
         report_df.loc["CVaR", "Benchmark"] = conditional_value_at_risk(
             benchmark_returns
         )
+        report_df.loc["Profit factor", "Benchmark"] = profit_factor(benchmark_returns)
+        report_df.loc["Payoff ratio", "Benchmark"] = payoff_ratio(benchmark_returns)
+        report_df.loc["Expectancy", "Benchmark"] = expectancy(benchmark_returns)
         report_df.loc["Max drawdown", "Benchmark"] = max_drawdown(benchmark_returns)
         report_df.loc["Kelly criterion", "Benchmark"] = kelly_criterion(
             benchmark_returns
@@ -291,7 +298,7 @@ def print_ohlc_backtest_report(
 ) -> None:
     good_trades = trades_df.loc[trades_df["trade_return"] > 0]
     bad_trades = trades_df.loc[trades_df["trade_return"] < 0]
-    total_trades = len(trades_df)
+    total_trades = trades_df.shape[0]
 
     print(f"\n{'  Strategy performances  ':-^50}")
 
@@ -301,13 +308,12 @@ def print_ohlc_backtest_report(
     print(
         f'Buy & Hold final net balance: {ohlcv_df["Cum_returns"].iloc[-1]*initial_equity:.2f} $, returns: {(ohlcv_df["Cum_returns"].iloc[-1]-1)*100:.2f} %'
     )
-    print(f"Strategy winrate ratio: {100 * len(good_trades) / total_trades:.2f} %")
+    print(f"Strategy winrate ratio: {100 * good_trades.shape[0] / total_trades:.2f} %")
+    print(f"Strategy payoff ratio: {payoff_ratio(trades_df['trade_return']):.2f}")
     print(
-        f"Strategy profit factor ratio: {profit_factor(good_trades['trade_return'].mean(),bad_trades['trade_return'].mean()):.2f}"
+        f"Strategy profit factor ratio: {profit_factor(trades_df['trade_return']):.2f}"
     )
-    print(
-        f"Strategy expectancy: {100*expectancy(len(good_trades) / total_trades,good_trades['trade_return'].mean(),bad_trades['trade_return'].mean()):.2f} %"
-    )
+    print(f"Strategy expectancy: {100*expectancy(trades_df['trade_return']):.2f} %")
 
     print_portfolio_strategy_report(
         ohlcv_df["Strategy_returns"], ohlcv_df["Returns"], timeframe
