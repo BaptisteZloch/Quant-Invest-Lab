@@ -38,6 +38,26 @@ def profit_factor(returns: pd.Series) -> float:
     return returns[returns > 0].sum() / abs(returns[returns < 0].sum())
 
 
+def compounded_annual_growth_rate(
+    returns: pd.Series,
+    N=365,
+) -> float:
+    """Also know as CAGR the compounded annual growth rate is the mean annual growth rate of an investment over a specified period of time longer than one year.
+
+    Args:
+    -----
+        returns (pd.Series): The strategy or portfolio not cumulative returns.
+
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
+
+    Returns:
+    -----
+        float: The compounded annual growth rate.
+    """
+    cum_ret = cumulative_returns(returns)
+    return ((cum_ret[-1] / cum_ret[0]) ** (N / returns.shape[0])) - 1
+
+
 def expectancy(
     returns: pd.Series,
 ) -> float:
@@ -68,7 +88,7 @@ def sharpe_ratio(
     -----
         returns (pd.Series): The strategy or portfolio not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
         risk_free_rate (float, optional): The risk free rate usually 10-year bond, buy-and-hold or 0. Defaults to 0.0.
 
@@ -109,7 +129,7 @@ def burke_ratio(
 
         n_drawdowns (int, optional): The number of drawdown to use as denominator, 0 < n_drawdowns <= 25. Defaults to 10.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
         risk_free_rate (float, optional): The risk free rate usually 10-year bond, buy-and-hold or 0. Defaults to 0.0.
 
@@ -137,7 +157,7 @@ def treynor_ratio(
 
         benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
         risk_free_rate (float, optional): The risk free rate usually 10-year bond, buy-and-hold or 0. Defaults to 0.0.
 
@@ -160,7 +180,7 @@ def sortino_ratio(
     -----
         returns (pd.Series): The strategy or portfolio not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
         risk_free_rate (float, optional): The risk free rate usually 10-year bond, buy-and-hold or 0. Defaults to 0.0.
 
@@ -184,7 +204,7 @@ def omega_ratio(
 
         annual_return_threshold (float): The annual return threshold. Defaults to 0.05.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----
@@ -209,7 +229,7 @@ def calmar_ratio(
     -----
         returns (pd.Series): The strategy or portfolio not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----
@@ -231,7 +251,7 @@ def information_ratio(
 
         benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----
@@ -255,7 +275,7 @@ def tracking_error(
 
         benchmark_returns (pd.Series): The strategy or portfolio benchmark not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----
@@ -274,7 +294,7 @@ def downside_risk(
     -----
         returns (pd.Series): The strategy or portfolio not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     ------
@@ -356,7 +376,7 @@ def systematic_risk(
 
         benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----
@@ -381,7 +401,7 @@ def specific_risk(
 
         benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----
@@ -406,7 +426,7 @@ def jensen_alpha(
 
         benchmark_returns (pd.Series): The strategy or portfolio's benchmark not cumulative returns.
 
-        N (Union[int, float], optional): The number of periods in a year. Defaults to 365.
+        N (Union[int, float], optional): The number of periods in a year for a given timeframe : 365 for daily data, 52 for weekly. Defaults to 365.
 
     Returns:
     -----

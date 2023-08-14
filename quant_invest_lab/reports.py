@@ -7,6 +7,7 @@ import plotly.figure_factory as ff
 from plotly.subplots import make_subplots
 from quant_invest_lab.metrics import (
     burke_ratio,
+    compounded_annual_growth_rate,
     expectancy,
     profit_factor,
     omega_ratio,
@@ -46,6 +47,9 @@ def construct_report_dataframe(
 
     report_df.loc["Expected return", "Portfolio"] = (
         portfolio_returns.mean() * TIMEFRAME_ANNUALIZED[timeframe]
+    )
+    report_df.loc["CAGR", "Portfolio"] = compounded_annual_growth_rate(
+        portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe]
     )
     report_df.loc["Expected volatility", "Portfolio"] = portfolio_returns.std() * (
         TIMEFRAME_ANNUALIZED[timeframe] ** 0.5
@@ -136,6 +140,9 @@ def construct_report_dataframe(
         report_df.loc["Profit factor", "Benchmark"] = profit_factor(benchmark_returns)
         report_df.loc["Payoff ratio", "Benchmark"] = payoff_ratio(benchmark_returns)
         report_df.loc["Expectancy", "Benchmark"] = expectancy(benchmark_returns)
+        report_df.loc["CAGR", "Benchmark"] = compounded_annual_growth_rate(
+            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe]
+        )
         report_df.loc["Max drawdown", "Benchmark"] = max_drawdown(benchmark_returns)
         report_df.loc["Kelly criterion", "Benchmark"] = kelly_criterion(
             benchmark_returns
@@ -179,6 +186,9 @@ def print_portfolio_strategy_report(
 
         print(
             f"Expected return annualized: {100*report_df.loc['Expected return', 'Portfolio']:.2f} % vs {100*report_df.loc['Expected return', 'Benchmark']:.2f} % (buy and hold)"
+        )
+        print(
+            f"CAGR: {100*report_df.loc['CAGR', 'Portfolio']:.2f} % vs {100*report_df.loc['CAGR', 'Benchmark']:.2f} % (buy and hold)"
         )
         print(
             f"Expected volatility annualized: {100*report_df.loc['Expected volatility', 'Portfolio']:.2f} % vs {100*report_df.loc['Expected volatility', 'Benchmark']:.2f} % (buy and hold)"
