@@ -24,7 +24,7 @@ class ABCPortfolio(ABC):
     def __init__(
         self,
         returns: pd.DataFrame,
-        benchmark_returns: Optional[pd.Series]=None,
+        benchmark_returns: Optional[pd.Series] = None,
         timeframe: Timeframe = "1hour",
     ) -> None:
         """Construct a new 'ABCPortfolio' object. Generic for all portfolio optimization models : `MonteCarloPortfolio`, `ConvexPortfolio`.
@@ -114,15 +114,8 @@ class ABCPortfolio(ABC):
             dict[PortfolioMetric, float | int]: The ratios, the risk, the return all the metrics related to the portfolio.
         """
         # ret = float(np.sum(self._returns_mean * weights * self._trading_days))  # type: ignore
-        rets = self._returns.apply(
-            lambda row_returns: row_returns @ weights, axis=1
-        )  # ( * weights)
+        rets = self._returns.apply(lambda row_returns: row_returns @ weights, axis=1)
         report_df = construct_report_dataframe(rets, self._benchmark_returns)
-
-        # vol = float(
-        #     np.sqrt(weights.T @ self._returns_cov * self._trading_days @ weights)
-        # )
-        # sr = ret / vol
 
         co = pd.DataFrame(self._returns.values * weights).corr()
         np.fill_diagonal(co.values, 1)
@@ -151,8 +144,13 @@ class RiskParityPortfolio(ABCPortfolio):
         weights_matrix = np.matrix(weights)
         assets_risk_budget = np.matrix(args[0])
 
+        if args[1] != "Expected volatility":
+            raise NotImplementedError(
+                "Only 'Expected volatility' is implemented for now."
+            )
+
         # We calculate the risk of the weights distribution
-        portfolio_risk = self._compute_metrics(weights=weights)["Expected volatility"]
+        portfolio_risk = self._compute_metrics(weights=weights)[args[1]]
 
         # We calculate the contribution of each asset to the risk of the weights
         # distribution
@@ -172,9 +170,21 @@ class RiskParityPortfolio(ABCPortfolio):
 
     def fit(
         self,
+        parity_risk_metric: Literal[
+            "Expected volatility",
+            "VaR",
+            "CVaR",
+            "Specific risk",
+            "Portfolio beta",
+            "Tracking error",
+        ] = "Expected volatility",
     ) -> None:
-        """Optimize the portfolio for an equity risk parity among assets. It uses an optimizer from `scipy.optimize` module. This method returns nothing."""
+        """Optimize the portfolio for an equity risk parity among assets. It uses an optimizer from `scipy.optimize` module. This method returns nothing.
 
+        Args:
+            parity_risk_metric (Literal[ &quot;Expected volatility&quot;, &quot;VaR&quot;, &quot;CVaR&quot;, &quot;Specific risk&quot;, &quot;Portfolio beta&quot;, &quot;Tracking error&quot;, ]): The metric to use to compute the risk parity among assets. It can be one of the following: `Expected volatility`, `VaR`, `CVaR`, `Specific risk`, `Portfolio beta`, `Tracking error`. Default to `Expected volatility`.
+
+        """
         cons = (
             {
                 "type": "eq",
@@ -195,7 +205,7 @@ class RiskParityPortfolio(ABCPortfolio):
         opt_results = minimize(
             fun=self.__compute_objective_metrics,
             x0=init_guess,
-            args=[assets_risk_budget],
+            args=[assets_risk_budget, parity_risk_metric],
             method="SLSQP",
             bounds=bounds,
             constraints=cons,

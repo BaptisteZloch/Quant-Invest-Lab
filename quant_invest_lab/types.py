@@ -16,6 +16,7 @@ Timeframe = Literal[
 PortfolioMetric = Literal[
     "Expected return",
     "Expected volatility",
+    "CAGR",
     "Skewness",
     "Kurtosis",
     "VaR",
