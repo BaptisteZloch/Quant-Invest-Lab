@@ -24,7 +24,7 @@ class ABCPortfolio(ABC):
     def __init__(
         self,
         returns: pd.DataFrame,
-        benchmark_returns: Optional[pd.Series],
+        benchmark_returns: Optional[pd.Series]=None,
         timeframe: Timeframe = "1hour",
     ) -> None:
         """Construct a new 'ABCPortfolio' object. Generic for all portfolio optimization models : `MonteCarloPortfolio`, `ConvexPortfolio`.
