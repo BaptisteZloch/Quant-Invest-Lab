@@ -62,6 +62,7 @@ from quant_invest_lab.metrics import (
 )
 
 from quant_invest_lab.types import Timeframe
+from quant_invest_lab.utils import from_returns_to_bins_count
 
 output_notebook()
 
@@ -401,18 +402,6 @@ def print_ohlc_backtest_report(
         print(f"- {reason}: {val}")
 
 
-def from_returns_to_bins_count(
-    returns: pd.Series,
-    method: Literal["sturge", "freedman-diaconis"] = "freedman-diaconis",
-) -> int:
-    if method == "freedman-diaconis":
-        iqr = returns.quantile(0.75) - returns.quantile(0.25)
-        bin_width = (2 * iqr) / (returns.shape[0] ** (1 / 3))
-        return int(np.ceil((returns.max() - returns.min()) / bin_width))
-    else:
-        return int(np.ceil(np.log2(returns.shape[0])) + 1)
-
-
 def plot_cumulative_performances(
     portfolio_cumulative_returns: pd.Series,
     benchmark_cumulative_returns: Optional[pd.Series] = None,
@@ -735,11 +724,6 @@ def plot_rolling_sharpe_ratio(
     p.grid.grid_line_color = GRID_COLOR
     p.grid.grid_line_alpha = 1
     return p
-
-
-from quant_invest_lab.metrics import (
-    omega_ratio,
-)
 
 
 def plot_omega_curve(
