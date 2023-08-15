@@ -3,28 +3,25 @@ import pandas as pd
 import numpy as np
 import numpy.typing as npt
 import numpy.linalg as linalg
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from scipy.optimize import minimize
-import plotly.graph_objects as go
-
 from quant_invest_lab.constants import PORTFOLIO_METRICS, TIMEFRAME_ANNUALIZED
 
 from quant_invest_lab.reports import (
     construct_report_dataframe,
+    plot_from_trade_df_and_ptf_optimization,
     print_portfolio_strategy_report,
 )
 from quant_invest_lab.types import PortfolioMetric, Timeframe
 
 
 class ABCPortfolio(ABC):
-    _has_benchmark = False
-
     def __init__(
         self,
         returns: pd.DataFrame,
-        benchmark_returns: Optional[pd.Series] = None,
+        benchmark_returns: pd.Series,
         timeframe: Timeframe = "1hour",
     ) -> None:
         """Construct a new 'ABCPortfolio' object. Generic for all portfolio optimization models : `MonteCarloPortfolio`, `ConvexPortfolio`.
@@ -33,7 +30,7 @@ class ABCPortfolio(ABC):
         -----
             returns (pd.DataFrame): The returns of the assets in the portfolio.
 
-            benchmark_returns (Optional[pd.Series]): The returns of the portfolio's benchmark.
+            benchmark_returns (pd.Series): The returns of the portfolio's benchmark.
 
             timeframe (Timeframe, optional): The timeframe granularity of the returns and the benchmark_returns, it must be the same. Defaults to "1hour".
         """
@@ -44,60 +41,49 @@ class ABCPortfolio(ABC):
         self._timeframe = timeframe
         self._trading_days = TIMEFRAME_ANNUALIZED[self._timeframe]
         self._already_optimized = False
+        self._optimized_weights = None
 
     @abstractmethod
     def fit(self):
         pass
 
-    @abstractmethod
-    def get_allocation(self):
-        pass
+    def get_allocation(self) -> pd.DataFrame:
+        """Plot the allocation of the portfolio and return a DataFrame with the allocation of each asset. This function can't be called before the fit method.
 
-    @staticmethod
-    def _plot_allocation(
-        weights: npt.NDArray | Iterable,
-        assets: npt.NDArray | list[str] | tuple[str] | pd.Index,
-    ) -> None:
-        """Plot the allocation of the portfolio in  a pie chart.
-
-        Args:
-        -----
-            weights (npt.NDArray | Iterable): The weights for each asset in the portfolio between 0 and 1.
-            assets (npt.NDArray | list[str] | tuple[str]): The assets (their names) in the portfolio.
+        Returns:
+        --------
+            pd.DataFrame: The allocation of each asset in the portfolio, columns are the assets and rows are the weights.
         """
-        res = [(p, float(w)) for p, w in zip(assets, weights)]
-        res.sort(key=lambda x: x[1], reverse=True)
-        res = np.array(res)
-        plt.title("Asset allocation")
-        plt.pie(res[:, -1], labels=res[:, 0].tolist(), autopct="%1.1f%%")
-        plt.show()
-        # import plotly.express as px
-        # fig = go.Figure(
-        #     go.Pie(
-        #         labels=res[:, 0].tolist(),
-        #         values=res[:, -1],
-        #         hole=0.4,
-        #         text=[f"{p}: {float(w):.2f} %" for p, w in res],
-        #         textinfo="label+percent",
-        #         hoverinfo="label+value",
-        #         marker=dict(colors=px.colors.qualitative.Pastel1),
-        #     )
-        # )
+        assert (
+            self._already_optimized
+        ), "You must fit the model before getting the allocation."
 
-        # fig.update_layout(
-        #     title={
-        #         "text": "Asset allocation",
-        #         "x": 0.5,
-        #         "y": 0.95,
-        #         "xanchor": "center",
-        #         "yanchor": "top",
-        #     },
-        #     showlegend=False,
-        #     height=600,
-        #     width=600,
-        # )
+        print(f"{'  Results  ':-^40}")
 
-        # fig.show()
+        print_portfolio_strategy_report(
+            self._returns.apply(
+                lambda row_returns: row_returns @ self._optimized_weights, axis=1
+            ),
+            self._benchmark_returns,
+            self._timeframe,
+        )
+        allocation_dataframe = pd.DataFrame(
+            {
+                p: [w]
+                for p, w in zip(
+                    self._returns.columns,
+                    self._optimized_weights,
+                )
+            }
+        )
+        plot_from_trade_df_and_ptf_optimization(
+            self._returns.apply(
+                lambda row_returns: row_returns @ self._optimized_weights, axis=1
+            ),
+            self._benchmark_returns,
+            allocation_dataframe,
+        )
+        return allocation_dataframe
 
     def _compute_metrics(
         self,
@@ -213,40 +199,7 @@ class RiskParityPortfolio(ABCPortfolio):
         )
 
         self._already_optimized = True
-        self.__optimized_weights = opt_results.x
-
-    def get_allocation(self) -> pd.DataFrame:
-        """Plot the allocation of the portfolio and return a DataFrame with the allocation of each asset. This function can't be called before the fit method.
-
-        Returns:
-        --------
-            pd.DataFrame: The allocation of each asset in the portfolio, columns are the assets and rows are the weights.
-        """
-        assert (
-            self._already_optimized
-        ), "You must fit the model before getting the allocation."
-
-        print(f"{'  Results  ':-^40}")
-
-        print_portfolio_strategy_report(
-            self._returns.apply(
-                lambda row_returns: row_returns @ self.__optimized_weights, axis=1
-            ),
-            self._benchmark_returns,
-            self._timeframe,
-        )
-        RiskParityPortfolio._plot_allocation(
-            self.__optimized_weights, self._returns.columns
-        )
-        return pd.DataFrame(
-            {
-                p: [w]
-                for p, w in zip(
-                    self._returns.columns,
-                    self.__optimized_weights,
-                )
-            }
-        )
+        self._optimized_weights = opt_results.x
 
 
 class ConvexPortfolio(ABCPortfolio):
@@ -333,43 +286,7 @@ class ConvexPortfolio(ABCPortfolio):
         )
 
         self._already_optimized = True
-        self.__optimized_weights = opt_results.x
-
-    def get_allocation(self) -> pd.DataFrame:
-        """Plot the allocation of the portfolio and return a DataFrame with the allocation of each asset. This function can't be called before the fit method.
-
-        Returns:
-        --------
-            pd.DataFrame: The allocation of each asset in the portfolio, columns are the assets and rows are the weights.
-        """
-        assert (
-            self._already_optimized
-        ), "You must fit the model before getting the allocation."
-
-        print(f"{'  Results  ':-^40}")
-        print_portfolio_strategy_report(
-            self._returns.apply(
-                lambda row_returns: row_returns @ self.__optimized_weights, axis=1
-            ),
-            self._benchmark_returns,
-            self._timeframe,
-        )
-
-        # print(
-        #     f"- Annualized Sharpe ratio: {self.__optimized_metrics.get('sharpe',0.0):.2f}\n- Annualized risk (volatility): {100*self.__optimized_metrics.get('risk',1.0):.2f} %\n- Annualized expected return: {100*self.__optimized_metrics.get('return',0.0):.2f} %"
-        # )
-        ConvexPortfolio._plot_allocation(
-            self.__optimized_weights, self._returns.columns
-        )
-        return pd.DataFrame(
-            {
-                p: [w]
-                for p, w in zip(
-                    self._returns.columns,
-                    self.__optimized_weights,
-                )
-            }
-        )
+        self._optimized_weights = opt_results.x
 
 
 class MonteCarloPortfolio(ABCPortfolio):
@@ -529,10 +446,7 @@ class MonteCarloPortfolio(ABCPortfolio):
         print(
             f"- Annualized Sharpe ratio: {self.__sharpe_arr[ind]:.2f}\n- Annualized risk (volatility): {100*self.__vol_arr[ind]:.2f} %\n- Annualized expected return: {100*self.__ret_arr[ind]:.2f} %"
         )
-        MonteCarloPortfolio._plot_allocation(
-            self.__all_weights[ind, :], self._returns.columns
-        )
-        return pd.DataFrame(
+        alloc_df = pd.DataFrame(
             {
                 p: [w]
                 for p, w in zip(
@@ -541,3 +455,11 @@ class MonteCarloPortfolio(ABCPortfolio):
                 )
             }
         )
+        plot_from_trade_df_and_ptf_optimization(
+            self._returns.apply(
+                lambda row_returns: row_returns @ self._optimized_weights, axis=1
+            ),
+            self._benchmark_returns,
+            alloc_df,
+        )
+        return alloc_df

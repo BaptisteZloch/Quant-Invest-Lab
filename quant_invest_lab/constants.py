@@ -1,4 +1,8 @@
 from quant_invest_lab.types import Timeframe
+from bokeh.models import (
+    DatetimeTickFormatter,
+    NumeralTickFormatter,
+)
 
 TIMEFRAME_ANNUALIZED = {
     "1min": int(365 * 24 / 1 * 60),
@@ -54,6 +58,7 @@ TIMEFRAME_IN_S = {
 
 PORTFOLIO_METRICS = [
     "Expected return",
+    "CAGR",
     "Expected volatility",
     "Skewness",
     "Kurtosis",
@@ -79,3 +84,19 @@ PORTFOLIO_METRICS = [
     "Treynor ratio",
     "Information ratio",
 ]
+
+
+DT_FORMATTER = DatetimeTickFormatter(
+    hours="%d-%m-%Y",
+    days="%d-%m-%Y",
+    months="%d-%m-%Y",
+    years="%d-%m-%Y",
+)
+RETURNS_FORMATTER = NumeralTickFormatter(format="0%")
+
+SALMON_COLOR = "rgba(255, 99, 71,1)"
+VIOLET_COLOR = "rgba(238, 130, 238, 1)"
+BACKGROUND_COLOR = "#E5ECF6"
+GRID_COLOR = "#FFFFFF"
+UNIT_PLOT_HEIGHT = 500
+UNIT_PLOT_WIDTH = 550

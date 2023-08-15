@@ -1,13 +1,43 @@
 from scipy.stats import skew, kurtosis
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-from plotly.subplots import make_subplots
+from math import pi
+
+# import plotly.graph_objects as go
+# import plotly.figure_factory as ff
+# from plotly.subplots import make_subplots
+from bokeh.plotting import figure
+from bokeh.layouts import gridplot
+from bokeh.io import push_notebook, show, output_notebook
+from bokeh.models import (
+    Model,
+    ColumnDataSource,
+    HoverTool,
+)
+from bokeh.palettes import Category20c
+from bokeh.transform import dodge, cumsum
+
+
+from quant_invest_lab.constants import (
+    DT_FORMATTER,
+    RETURNS_FORMATTER,
+    SALMON_COLOR,
+    VIOLET_COLOR,
+    BACKGROUND_COLOR,
+    GRID_COLOR,
+    UNIT_PLOT_HEIGHT,
+    UNIT_PLOT_WIDTH,
+    TIMEFRAME_ANNUALIZED,
+    TIMEFRAMES,
+)
+
+
 from quant_invest_lab.metrics import (
     burke_ratio,
     compounded_annual_growth_rate,
+    cumulative_returns,
+    drawdown,
     expectancy,
     profit_factor,
     omega_ratio,
@@ -30,8 +60,10 @@ from quant_invest_lab.metrics import (
     value_at_risk,
     conditional_value_at_risk,
 )
-from quant_invest_lab.constants import TIMEFRAME_ANNUALIZED, TIMEFRAMES
+
 from quant_invest_lab.types import Timeframe
+
+output_notebook()
 
 
 def construct_report_dataframe(
@@ -141,7 +173,7 @@ def construct_report_dataframe(
         report_df.loc["Payoff ratio", "Benchmark"] = payoff_ratio(benchmark_returns)
         report_df.loc["Expectancy", "Benchmark"] = expectancy(benchmark_returns)
         report_df.loc["CAGR", "Benchmark"] = compounded_annual_growth_rate(
-            portfolio_returns, TIMEFRAME_ANNUALIZED[timeframe]
+            benchmark_returns, TIMEFRAME_ANNUALIZED[timeframe]
         )
         report_df.loc["Max drawdown", "Benchmark"] = max_drawdown(benchmark_returns)
         report_df.loc["Kelly criterion", "Benchmark"] = kelly_criterion(
@@ -369,6 +401,493 @@ def print_ohlc_backtest_report(
         print(f"- {reason}: {val}")
 
 
+def from_returns_to_bins_count(
+    returns: pd.Series,
+    method: Literal["sturge", "freedman-diaconis"] = "freedman-diaconis",
+) -> int:
+    if method == "freedman-diaconis":
+        iqr = returns.quantile(0.75) - returns.quantile(0.25)
+        bin_width = (2 * iqr) / (returns.shape[0] ** (1 / 3))
+        return int(np.ceil((returns.max() - returns.min()) / bin_width))
+    else:
+        return int(np.ceil(np.log2(returns.shape[0])) + 1)
+
+
+def plot_cumulative_performances(
+    portfolio_cumulative_returns: pd.Series,
+    benchmark_cumulative_returns: Optional[pd.Series] = None,
+) -> Model:
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title="Cumulative performance",
+        x_axis_label="Datetime",
+        x_axis_type="datetime",
+        y_axis_label="Cumulative performance (Log-scale)",
+        y_axis_type="log",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+    if benchmark_cumulative_returns is not None:
+        p.line(
+            x=benchmark_cumulative_returns.index,
+            y=benchmark_cumulative_returns,
+            color=VIOLET_COLOR,
+            line_width=2,
+            legend_label="Benchmark cumulative return",
+        )
+    p.line(
+        x=portfolio_cumulative_returns.index,
+        y=portfolio_cumulative_returns,
+        color=SALMON_COLOR,
+        line_width=2,
+        legend_label="Portfolio cumulative return",
+    )
+    p.xaxis.formatter = DT_FORMATTER
+
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+def plot_returns_distribution(
+    portfolio_returns: pd.Series,
+    benchmark_returns: Optional[pd.Series] = None,
+) -> Model:
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title="Returns distribution",
+        x_axis_label="Returns",
+        y_axis_label="Count",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+    hist, edges = np.histogram(
+        portfolio_returns,
+        density=True,
+        bins=from_returns_to_bins_count(portfolio_returns),
+    )
+
+    p.quad(
+        top=hist,
+        bottom=0,
+        left=edges[:-1],
+        right=edges[1:],
+        fill_color=SALMON_COLOR,
+        line_color="#FFFFFF00",
+        alpha=0.45,
+        legend_label="Strategy returns distribution",
+    )
+    if benchmark_returns is not None:
+        hist, edges = np.histogram(
+            benchmark_returns,
+            density=True,
+            bins=from_returns_to_bins_count(benchmark_returns),
+        )
+        p.quad(
+            top=hist,
+            bottom=0,
+            left=edges[:-1],
+            right=edges[1:],
+            fill_color=VIOLET_COLOR,
+            line_color="#FFFFFF00",
+            alpha=0.45,
+            legend_label="Benchmark returns distribution",
+        )
+    p.legend.location = "center"
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.xaxis.formatter = RETURNS_FORMATTER
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+def plot_drawdown(
+    portfolio_drawdown: pd.Series,
+    benchmark_drawdown: Optional[pd.Series] = None,
+) -> Model:
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title="Underwater area (drawdown)",
+        x_axis_label="Datetime",
+        x_axis_type="datetime",
+        y_axis_label="Drawdown",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+    if benchmark_drawdown is not None:
+        p.line(
+            x=benchmark_drawdown.index,
+            y=benchmark_drawdown,
+            color=VIOLET_COLOR,
+            line_width=1.5,
+        )
+        p.varea(
+            x=benchmark_drawdown.index,
+            y1=0,
+            y2=benchmark_drawdown,
+            color=VIOLET_COLOR,
+            alpha=0.55,
+            legend_label="Benchmark drawdown",
+        )
+
+    p.line(
+        x=portfolio_drawdown.index,
+        y=portfolio_drawdown,
+        color=SALMON_COLOR,
+        line_width=1.5,
+    )
+    p.varea(
+        x=portfolio_drawdown.index,
+        y1=0,
+        y2=portfolio_drawdown,
+        color=SALMON_COLOR,
+        alpha=0.55,
+        legend_label="Portfolio drawdown",
+    )
+    p.xaxis.formatter = DT_FORMATTER
+    p.yaxis.formatter = RETURNS_FORMATTER
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+def plot_decile_performance(
+    portfolio_returns: pd.Series, benchmark_returns: pd.Series
+) -> Model:
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title="Conditional performance per decile",
+        x_axis_label="Decile",
+        y_axis_label="Returns",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+
+    df_rets = pd.DataFrame(
+        {"Returns": benchmark_returns, "Strategy_returns": portfolio_returns}
+    )
+
+    deciles = np.array(
+        [
+            (chunks["Returns"].mean(), chunks["Strategy_returns"].mean())
+            for chunks in np.array_split(
+                df_rets.sort_values(by="Returns", ascending=True), 10
+            )
+        ]
+    )
+    source = ColumnDataSource(
+        data={
+            "decile": np.arange(1, deciles[:, 0].shape[0] + 1),
+            "benchmark": deciles[:, 0],
+            "portfolio": deciles[:, 1],
+        }
+    )
+
+    p.vbar(
+        x=dodge("decile", -0.2, range=p.x_range),
+        top="benchmark",
+        width=0.4,
+        alpha=0.7,
+        source=source,
+        line_color="#FFFFFF00",
+        fill_color=VIOLET_COLOR,
+        legend_label="Benchmark decile",
+    )
+    p.vbar(
+        x=dodge("decile", 0.2, range=p.x_range),
+        top="portfolio",
+        width=0.4,
+        alpha=0.7,
+        source=source,
+        line_color="#FFFFFF00",
+        fill_color=SALMON_COLOR,
+        legend_label="Portfolio decile",
+    )
+
+    # p.vbar(x=x, top=deciles[:,-1], width=0.9, line_color="#FFFFFF00",fill_color=SALMON_COLOR, legend_label="Portfolio decile",)
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.yaxis.formatter = RETURNS_FORMATTER
+    p.grid.grid_line_alpha = 1
+    p.x_range.start = 0
+    p.x_range.end = 11
+    return p
+
+
+def plot_expected_return_profile(
+    portfolio_cumulative_returns: pd.Series,
+    benchmark_cumulative_returns: Optional[pd.Series] = None,
+) -> Model:
+    windows_bh = [
+        day for day in range(5, portfolio_cumulative_returns.shape[0] // 3, 30)
+    ]
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title="Expected return profile",
+        x_axis_label="Horizon (in candles)",
+        y_axis_label="Expected return",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+    if benchmark_cumulative_returns is not None:
+        bench_expected_return_profile = [
+            benchmark_cumulative_returns.rolling(window)
+            .apply(lambda prices: (prices[-1] / prices[0]) - 1)
+            .mean()
+            for window in windows_bh
+        ]
+        p.circle(
+            windows_bh,
+            bench_expected_return_profile,
+            size=5,
+            color=VIOLET_COLOR,
+        )
+        p.line(
+            x=windows_bh,
+            y=bench_expected_return_profile,
+            color=VIOLET_COLOR,
+            line_width=2,
+            legend_label="Benchmark expected return profile",
+        )
+    ptf_expected_return_profile = [
+        portfolio_cumulative_returns.rolling(window)
+        .apply(lambda prices: (prices[-1] / prices[0]) - 1)
+        .mean()
+        for window in windows_bh
+    ]
+    p.circle(
+        windows_bh,
+        ptf_expected_return_profile,
+        size=5,
+        color=SALMON_COLOR,
+    )
+    p.line(
+        x=windows_bh,
+        y=ptf_expected_return_profile,
+        color=SALMON_COLOR,
+        line_width=2,
+        legend_label="Portfolio expected return profile",
+    )
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.yaxis.formatter = RETURNS_FORMATTER
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+def plot_rolling_sharpe_ratio(
+    portfolio_returns: pd.Series,
+    benchmark_returns: Optional[pd.Series] = None,
+) -> Model:
+    n_rolling = portfolio_returns.shape[0] // 10
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title=f"{n_rolling}-candles rolling Sharpe ratio",
+        x_axis_label="Datetime",
+        x_axis_type="datetime",
+        y_axis_label="Sharpe ratio",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+    if benchmark_returns is not None:
+        p.line(
+            x=benchmark_returns.index,
+            y=benchmark_returns.rolling(n_rolling)
+            .apply(
+                lambda rets: (365 * rets.mean()) / (rets.std() * (365**0.5)),
+            )
+            .fillna(0),
+            color=VIOLET_COLOR,
+            line_width=2,
+            legend_label="Benchmark rolling sharpe ratio",
+        )
+    p.line(
+        x=portfolio_returns.index,
+        y=portfolio_returns.rolling(n_rolling)
+        .apply(
+            lambda rets: (365 * rets.mean()) / (rets.std() * (365**0.5)),
+        )
+        .fillna(0),
+        color=SALMON_COLOR,
+        line_width=2,
+        legend_label="Portfolio rolling sharpe ratio",
+    )
+    p.xaxis.formatter = DT_FORMATTER
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+from quant_invest_lab.metrics import (
+    omega_ratio,
+)
+
+
+def plot_omega_curve(
+    portfolio_returns: pd.Series,
+    benchmark_returns: Optional[pd.Series] = None,
+) -> Model:
+    thresholds = np.linspace(0.01, 0.75, 100)
+    omega_bench = []
+    omega_ptf = []
+    for threshold in thresholds:
+        omega_ptf.append(omega_ratio(portfolio_returns, threshold))
+        if benchmark_returns is not None:
+            omega_bench.append(omega_ratio(benchmark_returns, threshold))
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title=f"Omega curve",
+        x_axis_label="Return threshold",
+        y_axis_label="Omega ratio",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+    if benchmark_returns is not None:
+        p.line(
+            x=thresholds,
+            y=omega_bench,
+            color=VIOLET_COLOR,
+            line_width=2,
+            legend_label="Benchmark omega curve",
+        )
+    p.line(
+        x=thresholds,
+        y=omega_ptf,
+        color=SALMON_COLOR,
+        line_width=2,
+        legend_label="Portfolio omega curve",
+    )
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.xaxis.formatter = RETURNS_FORMATTER
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+def plot_candle_stick(dataframe_with_ohlc: pd.DataFrame) -> Model:
+    assert (
+        type(dataframe_with_ohlc.index) == pd.DatetimeIndex
+    ), "Error, index must be a pd.DatetimeIndex"
+    assert {"Open", "High", "Low", "Close"}.issubset(
+        dataframe_with_ohlc.columns
+    ), "Error, dataframe must have columns Open, High, Low, Close"
+    inc = dataframe_with_ohlc.Close > dataframe_with_ohlc.Open
+    dec = dataframe_with_ohlc.Open > dataframe_with_ohlc.Close
+    w = 16 * 60 * 60 * 1000  # milliseconds
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title=f"Candlestick chart",
+        x_axis_label="Datetime",
+        y_axis_label="Price",
+        x_axis_type="datetime",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+
+    p.segment(
+        dataframe_with_ohlc.index,
+        dataframe_with_ohlc.High,
+        dataframe_with_ohlc.index,
+        dataframe_with_ohlc.Low,
+        color="black",
+    )
+
+    p.vbar(
+        dataframe_with_ohlc.index[dec],
+        w,
+        dataframe_with_ohlc.Open[dec],
+        dataframe_with_ohlc.Close[dec],
+        color="#eb3c40",
+    )
+    p.vbar(
+        dataframe_with_ohlc.index[inc],
+        w,
+        dataframe_with_ohlc.Open[inc],
+        dataframe_with_ohlc.Close[inc],
+        fill_color="white",
+        line_color="#49a3a3",
+        line_width=2,
+    )
+    p.xaxis.formatter = DT_FORMATTER
+    p.legend.location = "center"
+
+    # p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.grid.grid_line_alpha = 1
+    return p
+
+
+def plot_asset_allocation(
+    allocation_dataframe: pd.DataFrame, min_weight: float = 0.001
+) -> Model:
+    alloc = (
+        allocation_dataframe[allocation_dataframe >= min_weight]
+        .dropna(axis=1)
+        .sort_values(by=0, ascending=False, axis=1)
+    )
+
+    data = {
+        "assets": alloc.columns.to_list(),
+        "weights": alloc.loc[0].to_list(),
+    }
+
+    df = pd.DataFrame(data)
+
+    df["angle"] = df["weights"] / df["weights"].sum() * 2 * pi
+    df["color"] = Category20c[len(data["assets"])]
+
+    p = figure(
+        height=UNIT_PLOT_HEIGHT,
+        width=UNIT_PLOT_WIDTH,
+        title="Asset allocation",
+        toolbar_location=None,
+        tools="hover",
+        tooltips="@assets: @weights",
+        x_range=(-0.5, 1.0),
+    )
+
+    p.wedge(
+        x=0,
+        y=1,
+        radius=0.45,
+        start_angle=cumsum("angle", include_zero=True),
+        end_angle=cumsum("angle"),
+        line_color="white",
+        fill_color="color",
+        legend_field="assets",
+        source=df,
+    )
+
+    p.axis.axis_label = None
+    p.axis.visible = False
+    p.grid.grid_line_color = None
+
+    return p
+
+
 def plot_from_trade_df(price_df: pd.DataFrame) -> None:
     """Plot historical price, equity progression, drawdown evolution and return distribution.
 
@@ -377,303 +896,89 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
         price_df (pd.DataFrame): The historical price dataframe.
 
     """
-    n_rolling = price_df["Strategy_returns"].shape[0] // 10
-    fig = make_subplots(
-        rows=4,
-        cols=2,
-        subplot_titles=(
-            "Historical price",
-            "Return distribution",
-            "Equity progression",
-            "Expected return profile",
-            "Drawdown evolution",
-            "Return per decile",
-            f"{n_rolling} candles rolling Sharpe ratio",
-            "Omega curve",
-        ),
-        shared_xaxes=False,
-    )
-
-    fig.add_trace(
-        go.Candlestick(
-            name="Historical price",
-            x=price_df.index,
-            open=price_df["Open"],
-            high=price_df["High"],
-            low=price_df["Low"],
-            close=price_df["Close"],
-            legendgroup="1",
-        ),
-        row=1,
-        col=1,
-    )
-    fig.update_yaxes(title_text="Historical price", row=1, col=1)
-    fig.update_xaxes(title_text="Datetime", row=1, col=1)
-
-    fig.add_trace(
-        go.Scatter(
-            name="Buy and hold cumulative return",
-            x=price_df.index,
-            y=price_df["Cum_returns"],
-            line={"shape": "hv", "color": "violet"},
-            legendgroup="2",
-        ),
-        row=2,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Strategy cumulative return",
-            x=price_df.index,
-            y=price_df["Strategy_cum_returns"],
-            line={"shape": "hv", "color": "salmon"},
-            legendgroup="2",
-        ),
-        row=2,
-        col=1,
-    )
-    fig.update_yaxes(type="log", row=2, col=1)
-    fig.update_yaxes(title_text="Log cumulative returns", row=2, col=1)
-    fig.update_xaxes(title_text="Datetime", row=2, col=1)
-
-    fig.add_trace(
-        go.Scatter(
-            name="Buy and hold drawdown",
-            x=price_df.index,
-            y=price_df["Drawdown"],
-            line={"shape": "hv", "color": "violet"},
-            fill="tozeroy",
-            fillcolor="rgba(238, 130, 238, 0.35)",
-            legendgroup="3",
-        ),
-        row=3,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Strategy drawdown",
-            x=price_df.index,
-            y=price_df["Strategy_drawdown"],
-            line={"shape": "hv", "color": "salmon"},
-            fill="tozeroy",
-            fillcolor="rgba(255, 99, 71, 0.35)",
-            legendgroup="3",
-        ),
-        row=3,
-        col=1,
-    )
-
-    fig.update_yaxes(
-        title_text="Drawdown",
-        row=3,
-        col=1,
-    )
-    fig.update_xaxes(
-        title_text="Datetime",
-        row=3,
-        col=1,
-    )
-
-    windows_bh = [day for day in range(5, price_df["Cum_returns"].shape[0] // 3, 30)]
-
-    fig.add_trace(
-        go.Scatter(
-            name="Strategy expected return profile",
-            legendgroup="2",
-            x=windows_bh,
-            y=[
-                price_df["Strategy_cum_returns"]
-                .rolling(window)
-                .apply(lambda prices: (prices[-1] / prices[0]) - 1)
-                .mean()
-                for window in windows_bh
-            ],
-            line={"color": "salmon"},
-        ),
-        row=2,
-        col=2,
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Buy and Hold expected return profile",
-            legendgroup="2",
-            x=windows_bh,
-            y=[
-                price_df["Cum_returns"]
-                .rolling(window)
-                .apply(lambda prices: (prices[-1] / prices[0]) - 1)
-                .mean()
-                for window in windows_bh
-            ],
-            line={"color": "violet"},
-        ),
-        row=2,
-        col=2,
-    )
-    fig.update_yaxes(
-        title_text="Expected return",
-        row=2,
-        col=2,
-    )
-    fig.update_xaxes(
-        title_text="Horizon (in candles)",
-        row=2,
-        col=2,
-    )
-
-    distplot_bench = ff.create_distplot(
-        [price_df["Returns"]],
-        ["Benchmark Returns"],
-        colors=["violet"],
-        curve_type="kde",
-        bin_size=3.5
-        * price_df["Returns"].std()
-        / (len(price_df["Returns"]) ** (1 / 3)),
-    )
-    fig.add_trace(distplot_bench["data"][0], row=1, col=2)
-    distplot = ff.create_distplot(
-        [price_df["Strategy_returns"]],
-        ["Strategy Returns"],
-        colors=["salmon"],
-        curve_type="kde",
-        bin_size=3.5
-        * price_df["Strategy_returns"].std()
-        / (len(price_df["Strategy_returns"]) ** (1 / 3)),
-    )
-    fig.add_trace(distplot["data"][0], row=1, col=2)
-
-    fig.update_xaxes(title_text="Returns", row=1, col=2)
-    fig.update_yaxes(title_text="Density", row=1, col=2)
-
-    deciles = np.array(
+    grid = gridplot(
         [
-            (chunks["Returns"].mean(), chunks["Strategy_returns"].mean())
-            for chunks in np.array_split(
-                price_df.sort_values(by="Returns", ascending=True), 10
-            )
-        ]
+            [
+                plot_candle_stick(price_df),
+                plot_returns_distribution(
+                    price_df["Strategy_returns"], price_df["Returns"]
+                ),
+            ],
+            [
+                plot_cumulative_performances(
+                    price_df["Strategy_cum_returns"], price_df["Cum_returns"]
+                ),
+                plot_expected_return_profile(
+                    price_df["Strategy_cum_returns"], price_df["Cum_returns"]
+                ),
+            ],
+            [
+                plot_drawdown(price_df["Strategy_drawdown"], price_df["Drawdown"]),
+                plot_decile_performance(
+                    price_df["Strategy_returns"], price_df["Returns"]
+                ),
+            ],
+            [
+                plot_rolling_sharpe_ratio(
+                    price_df["Strategy_returns"], price_df["Returns"]
+                ),
+                plot_omega_curve(price_df["Strategy_returns"], price_df["Returns"]),
+            ],
+        ]  # type: ignore
     )
 
-    fig.add_trace(
-        go.Bar(
-            x=np.arange(1, deciles[:, 0].shape[0] + 1),
-            y=deciles[:, 0],
-            name="Buy and hold returns",
-            marker_color="violet",
-        ),
-        row=3,
-        col=2,
+    show(grid)
+
+
+def plot_from_trade_df_and_ptf_optimization(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    asset_allocation_dataframe: pd.DataFrame,
+) -> None:
+    """Plot a report containing historical price, equity progression, drawdown evolution and return distribution, asset allocation...
+
+    Args:
+        portfolio_returns (pd.Series): The portfolio returns from the optimization.
+        benchmark_returns (pd.Series): The benchmark returns.
+        asset_allocation_dataframe (pd.DataFrame): The allocation of each asset in the portfolio, columns are the assets and rows are the weights.
+    """
+    price_df = pd.DataFrame(
+        data={"Strategy_returns": portfolio_returns, "Returns": benchmark_returns},
+        index=benchmark_returns.index,
     )
-    fig.add_trace(
-        go.Bar(
-            x=np.arange(1, deciles[:, 1].shape[0] + 1),
-            y=deciles[:, 1],
-            name="Strategy returns",
-            marker_color="salmon",
-        ),
-        row=3,
-        col=2,
+    price_df["Strategy_cum_returns"] = cumulative_returns(price_df["Strategy_returns"])
+    price_df["Cum_returns"] = cumulative_returns(price_df["Returns"])
+    price_df["Strategy_drawdown"] = drawdown(price_df["Strategy_returns"])
+    price_df["Drawdown"] = drawdown(price_df["Returns"])
+    grid = gridplot(
+        [
+            [
+                plot_asset_allocation(asset_allocation_dataframe),
+                plot_returns_distribution(
+                    price_df["Strategy_returns"], price_df["Returns"]
+                ),
+            ],
+            [
+                plot_cumulative_performances(
+                    price_df["Strategy_cum_returns"], price_df["Cum_returns"]
+                ),
+                plot_expected_return_profile(
+                    price_df["Strategy_cum_returns"], price_df["Cum_returns"]
+                ),
+            ],
+            [
+                plot_drawdown(price_df["Strategy_drawdown"], price_df["Drawdown"]),
+                plot_decile_performance(
+                    price_df["Strategy_returns"], price_df["Returns"]
+                ),
+            ],
+            [
+                plot_rolling_sharpe_ratio(
+                    price_df["Strategy_returns"], price_df["Returns"]
+                ),
+                plot_omega_curve(price_df["Strategy_returns"], price_df["Returns"]),
+            ],
+        ]  # type: ignore
     )
 
-    fig.update_xaxes(title_text="Deciles", row=3, col=2)
-    fig.update_yaxes(title_text="Returns", row=3, col=2)
-
-    thresholds = np.linspace(0.01, 0.5, 100)
-    omega_bench = []
-    omega_ptf = []
-    for threshold in thresholds:
-        omega_ptf.append(omega_ratio(price_df["Strategy_returns"], threshold))
-        omega_bench.append(omega_ratio(price_df["Returns"], threshold))
-
-    fig.add_trace(
-        go.Scatter(
-            name="Strategy omega curve",
-            legendgroup="2",
-            x=thresholds,
-            y=omega_ptf,
-            line={"color": "salmon"},
-        ),
-        row=4,
-        col=2,
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Benchmark omega curve",
-            legendgroup="2",
-            x=thresholds,
-            y=omega_bench,
-            line={"color": "violet"},
-        ),
-        row=4,
-        col=2,
-    )
-    fig.update_yaxes(
-        title_text="Omega ratio",
-        row=4,
-        col=2,
-    )
-    fig.update_xaxes(
-        title_text="Annual return thresholds",
-        row=4,
-        col=2,
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            name="Strategy sharpe ratio",
-            legendgroup="4",
-            x=price_df.index,
-            y=price_df["Strategy_returns"]
-            .rolling(n_rolling)
-            .apply(
-                lambda rets: (365 * rets.mean()) / (rets.std() * (365**0.5)),
-            )
-            .fillna(0),
-            line={"color": "salmon"},
-        ),
-        row=4,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Buy and Hold sharpe ratio",
-            legendgroup="4",
-            x=price_df.index,
-            y=price_df["Returns"]
-            .rolling(n_rolling)
-            .apply(
-                lambda rets: (365 * rets.mean()) / (rets.std() * (365**0.5)),
-            )
-            .fillna(0),
-            line={"color": "violet"},
-        ),
-        row=4,
-        col=1,
-    )
-    fig.update_yaxes(
-        title_text="Rolling sharpe ratio",
-        row=4,
-        col=1,
-    )
-    fig.update_xaxes(
-        title_text="Datetime",
-        row=4,
-        col=1,
-    )
-
-    fig.update_layout(
-        legend=dict(
-            orientation="v",  # Set the orientation of the legends to horizontal
-            # yanchor="top",
-            # y=0,
-            # xanchor="center",
-            # x=0.0,
-        ),
-        # legend_tracegroupgap=180,
-        xaxis_rangeslider_visible=False,
-        showlegend=True,
-        title_text="Historical price, strategy equity evolution/drawdown and returns distribution",
-        height=1100,
-    )
-
-    fig.show()
+    show(grid)

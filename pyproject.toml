@@ -20,7 +20,7 @@ packages = [{include = "quant_invest_lab"}]
 "Homepage" = "https://github.com/BaptisteZloch/Quant-Invest-Lab"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
+python = ">=3.9,<3.12"
 pandas = "^1.5.3"
 scipy = "^1.10.1"
 statsmodels = "^0.14.0"
@@ -37,6 +37,7 @@ fitter = "^1.5.2"
 scikit-learn = "^1.2.2"
 emd-signal = "^1.4.0"
 pywavelets = "^1.4.1"
+bokeh = "^3.2.2"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.23.0"

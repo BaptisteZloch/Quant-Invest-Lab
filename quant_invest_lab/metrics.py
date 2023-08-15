@@ -40,7 +40,7 @@ def profit_factor(returns: pd.Series) -> float:
 
 def compounded_annual_growth_rate(
     returns: pd.Series,
-    N=365,
+    N: Union[int, float] = 365,
 ) -> float:
     """Also know as CAGR the compounded annual growth rate is the mean annual growth rate of an investment over a specified period of time longer than one year.
 
