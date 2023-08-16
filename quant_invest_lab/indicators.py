@@ -9,6 +9,28 @@ from ta.momentum import ppo_hist
 from ta.volatility import average_true_range
 
 
+def zma_indicator(close: pd.Series, window: int = 20) -> pd.Series:
+    """ZMA is smoother than SMA due to the integration (cumsum) and then differentiation (slope), which is important for point of change detections. In other words, it generates fewer false signals in technical analysis for trading.
+
+    Args:
+    ----
+        close (pd.Series): The close series from the OHLCV Data.
+
+        window (int, optional): The indicator window for the rolling window. Defaults to 60.
+
+    Returns:
+    ----
+        pd.Series: The ZMA indicator.
+    """
+
+    def zma(closes: pd.Series) -> float:
+        z = closes.cumsum()
+        x = np.arange(closes.shape[0])
+        return np.corrcoef(x, z)[0, 1] * np.std(z) / np.std(x)
+
+    return close.rolling(window).apply(zma)
+
+
 def efficiency_ratio_indicator(close: pd.Series, window: int = 60) -> pd.Series:
     """The Kaufman Efficiency Ratio is a ratio of the price direction to the price volatility. The result is a number, which oscillates between +1 and -1. The center point is 0. +1 indicates a financial instrument with a perfectly efficient upward trend.  -1 indicates a financial instrument with a perfectly efficient downward trend. It is virtually impossible for an instrument to have a perfect efficiency ratio (+1 or -1). The more efficient the ratio, the clearer the trend.
 
