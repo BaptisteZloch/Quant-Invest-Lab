@@ -2,6 +2,7 @@ from sklearn.decomposition import PCA
 from functools import lru_cache
 import numpy as np
 import numpy.typing as npt
+from bokeh.palettes import all_palettes
 from typing import Literal
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -108,3 +109,7 @@ def from_returns_to_bins_count(
         return int(np.ceil((returns.max() - returns.min()) / bin_width))
     else:
         return int(np.ceil(np.log2(returns.shape[0])) + 1)
+
+
+def get_color_palette(n_colors: int) -> npt.NDArray:
+    return np.random.choice(all_palettes["Viridis"][256], n_colors)

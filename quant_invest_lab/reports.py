@@ -62,7 +62,7 @@ from quant_invest_lab.metrics import (
 )
 
 from quant_invest_lab.types import Timeframe
-from quant_invest_lab.utils import from_returns_to_bins_count
+from quant_invest_lab.utils import from_returns_to_bins_count, get_color_palette
 
 output_notebook()
 
@@ -841,7 +841,9 @@ def plot_asset_allocation(
     df = pd.DataFrame(data)
 
     df["angle"] = df["weights"] / df["weights"].sum() * 2 * pi
-    df["color"] = Category20c[len(data["assets"])]
+    df["color"] = get_color_palette(
+        len(data["assets"])
+    )  # Category20c[len(data["assets"])]
 
     p = figure(
         height=UNIT_PLOT_HEIGHT,

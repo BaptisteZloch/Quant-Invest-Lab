@@ -342,7 +342,7 @@ class CryptoService:
 
         assert (
             symbol in self.get_list_of_symbols()
-        ), "Error, wrong symbol, provide something like 'BTC-USDT'."
+        ), f"Error, wrong symbol {symbol}, provide something like 'BTC-USDT'."
         return self.__refresh_or_download(symbol, timeframe)
 
     @lru_cache(maxsize=32, typed=True)
