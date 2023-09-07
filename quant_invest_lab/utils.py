@@ -106,9 +106,13 @@ def from_returns_to_bins_count(
     if method == "freedman-diaconis":
         iqr = returns.quantile(0.75) - returns.quantile(0.25)
         bin_width = (2 * iqr) / (returns.shape[0] ** (1 / 3))
-        return int(np.ceil((returns.max() - returns.min()) / bin_width))
+        bins_count = np.ceil((returns.max() - returns.min()) / bin_width)
+
     else:
-        return int(np.ceil(np.log2(returns.shape[0])) + 1)
+        bins_count = np.ceil(np.log2(returns.shape[0])) + 1
+    if bins_count == np.inf:
+        return 100
+    return int(bins_count)
 
 
 def get_color_palette(n_colors: int) -> npt.NDArray:
