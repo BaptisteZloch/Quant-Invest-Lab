@@ -333,7 +333,7 @@ def print_portfolio_strategy_report(
     return report_df
 
 
-def print_ohlc_backtest_report(
+def print_backtest_report(
     trades_df: pd.DataFrame,
     ohlcv_df: pd.DataFrame,
     timeframe: Timeframe,
@@ -824,6 +824,37 @@ def plot_candle_stick(dataframe_with_ohlc: pd.DataFrame) -> Model:
     return p
 
 
+def plot_price_evolution(
+    price: pd.Series,
+) -> Model:
+    p = figure(
+        tools="pan,wheel_zoom,box_zoom,reset,save",
+        width=UNIT_PLOT_WIDTH,
+        height=UNIT_PLOT_HEIGHT,
+        title="Price evolution",
+        x_axis_label="Datetime",
+        x_axis_type="datetime",
+        y_axis_label="Price evolution",
+        background_fill_color=BACKGROUND_COLOR,
+    )
+
+    p.line(
+        x=price.index,
+        y=price,
+        color=SALMON_COLOR,
+        line_width=2,
+        legend_label="Price",
+    )
+    p.xaxis.formatter = DT_FORMATTER
+
+    p.legend.location = "center"
+
+    p.add_layout(p.legend[0], "below")
+    p.grid.grid_line_color = GRID_COLOR
+    p.grid.grid_line_alpha = 1
+    return p
+
+
 def plot_asset_allocation(
     allocation_dataframe: pd.DataFrame, min_weight: float = 0.001
 ) -> Model:
@@ -882,10 +913,16 @@ def plot_from_trade_df(price_df: pd.DataFrame) -> None:
         price_df (pd.DataFrame): The historical price dataframe.
 
     """
+    output_notebook()
     grid = gridplot(
         [
             [
-                plot_candle_stick(price_df),
+                plot_candle_stick(price_df)
+                if set({"Open", "High", "Low", "Close", "Returns"}).issubset(
+                    price_df.columns
+                )
+                is True
+                else plot_price_evolution(price_df["Price"]),
                 plot_returns_distribution(
                     price_df["Strategy_returns"], price_df["Returns"]
                 ),
@@ -928,6 +965,7 @@ def plot_from_trade_df_and_ptf_optimization(
         benchmark_returns (pd.Series): The benchmark returns.
         asset_allocation_dataframe (pd.DataFrame): The allocation of each asset in the portfolio, columns are the assets and rows are the weights.
     """
+    output_notebook()
     price_df = pd.DataFrame(
         data={"Strategy_returns": portfolio_returns, "Returns": benchmark_returns},
         index=benchmark_returns.index,
