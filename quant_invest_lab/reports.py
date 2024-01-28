@@ -634,7 +634,7 @@ def plot_expected_return_profile(
     if benchmark_cumulative_returns is not None:
         bench_expected_return_profile = [
             benchmark_cumulative_returns.rolling(window)
-            .apply(lambda prices: (prices[-1] / prices[0]) - 1)
+            .apply(lambda prices: (prices.iloc[-1] / prices.iloc[0]) - 1)
             .mean()
             for window in windows_bh
         ]
@@ -653,7 +653,7 @@ def plot_expected_return_profile(
         )
     ptf_expected_return_profile = [
         portfolio_cumulative_returns.rolling(window)
-        .apply(lambda prices: (prices[-1] / prices[0]) - 1)
+        .apply(lambda prices: (prices.iloc[-1][-1] / prices.iloc[-1][0]) - 1)
         .mean()
         for window in windows_bh
     ]
