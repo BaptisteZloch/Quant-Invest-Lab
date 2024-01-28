@@ -55,7 +55,7 @@ def compounded_annual_growth_rate(
         float: The compounded annual growth rate.
     """
     cum_ret = cumulative_returns(returns)
-    return ((cum_ret[-1] / cum_ret[0]) ** (N / returns.shape[0])) - 1
+    return ((cum_ret.iloc[-1] / cum_ret.iloc[0]) ** (N / returns.shape[0])) - 1
 
 
 def expectancy(
